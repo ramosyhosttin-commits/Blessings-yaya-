@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blessings - Sistema POS e Inventario</title>
+    <title>Blessings - Sistema POS e Inventario con Cashea</title>
     <link rel="icon" type="image/png" href="logo.png">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -15,7 +15,6 @@
             --text-main: #f3f4f6;
             --text-muted: #9ca3af;
             
-            /* Tu paleta de colores personalizada */
             --soft-pink: #FBB3BB;
             --muted-pink: #D46C8C;
             --rouge: #9B3160;
@@ -23,6 +22,7 @@
             
             --success: #10b981;
             --danger: #ef4444;
+            --cashea-pink: #ff2a70;
         }
 
         * {
@@ -43,7 +43,7 @@
 
         .container {
             width: 100%;
-            max-width: 1200px;
+            max-width: 1250px;
             background: var(--card-dark);
             border-radius: 16px;
             border: 1px solid var(--border-dark);
@@ -54,7 +54,6 @@
             min-height: 720px;
         }
 
-        /* Login Screen */
         #login-screen {
             padding: 50px;
             text-align: center;
@@ -119,7 +118,6 @@
             display: none !important;
         }
 
-        /* App Header */
         .app-header {
             background-color: #181818;
             padding: 15px 25px;
@@ -162,7 +160,6 @@
             color: var(--soft-pink);
         }
 
-        /* Tabs Nav */
         .nav-tabs {
             display: flex;
             background-color: #161616;
@@ -187,7 +184,6 @@
             box-shadow: 0 4px 12px rgba(155, 49, 96, 0.4);
         }
 
-        /* Panel Content */
         .panel-content {
             padding: 25px;
             flex-grow: 1;
@@ -208,12 +204,11 @@
             border: 1px solid var(--border-dark);
         }
 
-        /* Productos POS Grid */
         .productos-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
             gap: 12px;
-            max-height: 330px;
+            max-height: 310px;
             overflow-y: auto;
             padding-right: 5px;
         }
@@ -241,7 +236,18 @@
             background: rgba(251, 179, 187, 0.1);
         }
 
-        /* Tablas */
+        .tag-cashea {
+            background: rgba(255, 42, 112, 0.15);
+            color: #ff75a0;
+            border: 1px solid rgba(255, 42, 112, 0.4);
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 4px;
+            font-weight: 600;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -267,11 +273,10 @@
             border: 1px dashed var(--muted-pink);
             border-radius: 10px;
             margin-top: 10px;
-            max-height: 160px;
+            max-height: 140px;
             overflow-y: auto;
         }
 
-        /* Modal Pagos Mixtos */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -286,7 +291,7 @@
             background: #1e1e1e;
             padding: 30px;
             border-radius: 14px;
-            width: 450px;
+            width: 480px;
             border: 1px solid var(--border-dark);
         }
 
@@ -304,12 +309,12 @@
 
     <div class="container">
 
-        <!-- 1. LOGIN SCREEN -->
+        <!-- LOGIN SCREEN -->
         <div id="login-screen">
             <div style="max-width: 360px; width: 100%;">
                 <img src="logo.png" alt="Blessings Logo" class="logo-img" onerror="this.style.display='none'">
                 <h1 style="color: var(--soft-pink);">Blessings</h1>
-                <p style="margin-bottom: 25px; color: var(--text-muted);">Sistema POS e Inventario Profesional</p>
+                <p style="margin-bottom: 25px; color: var(--text-muted);">Sistema POS e Inventario con Cashea</p>
                 <input type="text" id="user-input" placeholder="Usuario (admin / cajero)">
                 <input type="password" id="pass-input" placeholder="Contraseña">
                 <button onclick="login()" style="width: 100%; margin-top: 15px;">Iniciar Sesión</button>
@@ -317,15 +322,14 @@
             </div>
         </div>
 
-        <!-- 2. MAIN APP SCREEN -->
+        <!-- MAIN APP SCREEN -->
         <div id="app-screen" class="hidden">
             
-            <!-- Header -->
             <div class="app-header">
                 <div class="header-brand">
                     <img src="logo.png" alt="Logo" class="header-logo" onerror="this.style.display='none'">
                     <div>
-                        <h3 style="margin:0; color: var(--soft-pink);">Blessings</h3>
+                        <h3 style="margin:0; color: var(--soft-pink);">Blessings Yaya</h3>
                         <span id="user-role-label" class="badge-rol">Rol</span>
                     </div>
                 </div>
@@ -335,7 +339,6 @@
                 </div>
             </div>
 
-            <!-- Tabs -->
             <div class="nav-tabs">
                 <button class="tab-btn active" onclick="switchTab('pos')">🛒 Caja / POS</button>
                 <button class="tab-btn" onclick="switchTab('inventario')">📦 Inventario y Variantes</button>
@@ -348,7 +351,8 @@
                     <div>
                         <input type="text" id="buscador-productos" placeholder="🔍 Buscar por nombre, categoría o talla..." onkeyup="filtrarProductos()" style="margin-bottom: 15px;">
                         <div class="productos-grid" id="lista-productos-pos"></div>
-                        <div style="margin-top: 20px; display: flex; gap: 15px; align-items: center;">
+                        
+                        <div style="margin-top: 15px; display: flex; gap: 15px; align-items: center;">
                             <div style="flex-grow: 1;">
                                 <label style="font-size: 0.85rem; color: var(--text-muted);">Cantidad:</label>
                                 <input type="number" id="cantidad-input" value="1" min="1" style="margin:0;">
@@ -357,26 +361,35 @@
                                 <button onclick="agregarAlPedido()">Añadir al Ticket</button>
                             </div>
                         </div>
+
+                        <div id="cashea-calc-box" class="card" style="margin-top: 15px; background: #161616; border-color: #ff2a7044; display: none;">
+                            <h4 style="color: #ff75a0; font-size: 0.95rem; margin-bottom: 6px;">⚡ Cálculo Cashea (Estimado)</h4>
+                            <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+                                <span>Inicial (40%): <strong id="cashea-inicial-txt" style="color:var(--text-main);">$0.00</strong></span>
+                                <span>3 Cuotas c/u: <strong id="cashea-cuota-txt" style="color:var(--text-main);">$0.00</strong></span>
+                            </div>
+                        </div>
                     </div>
+
                     <div>
                         <h3>Ticket Actual</h3>
                         <div class="ticket-preview" id="ticket-actual">
                             <p style="color: var(--text-muted); font-size: 0.9rem;">No hay productos agregados.</p>
                         </div>
-                        <div style="margin-top: 15px;">
+                        <div style="margin-top: 12px;">
                             <label style="font-size: 0.85rem; color: var(--text-muted);">Descuento global ($):</label>
                             <input type="number" id="descuento-input" value="0" min="0" onchange="renderizarPedido()" style="margin-top:2px;">
                         </div>
-                        <h3 id="total-pagar" style="margin-top: 15px; color: var(--soft-pink);">Total: $0.00</h3>
-                        <button onclick="abrirModalPago()" style="background-color: var(--success); width: 100%; margin-top: 15px; font-size: 1.05rem;">💳 Procesar Pago Mixto</button>
+                        <h3 id="total-pagar" style="margin-top: 12px; color: var(--soft-pink);">Total: $0.00</h3>
+                        <button onclick="abrirModalPago()" style="background-color: var(--success); width: 100%; margin-top: 12px; font-size: 1.05rem;">💳 Procesar Pago Mixto</button>
                     </div>
                 </div>
             </div>
 
             <!-- TAB 2: INVENTARIO -->
             <div id="tab-inventario" class="panel-content hidden">
-                <h2>Control de Inventario con Variantes</h2>
-                <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9rem;">Organiza por categoría, tallas, colores y stock automático.</p>
+                <h2>Control de Inventario y Cashea</h2>
+                <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9rem;">Organiza por tallas, colores y define qué prendas aplican para financiamiento Cashea.</p>
 
                 <table>
                     <thead>
@@ -385,26 +398,35 @@
                             <th>Variante (Talla/Color)</th>
                             <th>Precio ($)</th>
                             <th>Stock</th>
+                            <th>Cashea</th>
                             <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-inventario-body"></tbody>
                 </table>
 
-                <div class="card" style="margin-top: 25px;" id="seccion-agregar-prod">
-                    <h3>Registrar Nuevo Producto / Variante</h3>
+                <div class="card" style="margin-top: 20px;" id="seccion-agregar-prod">
+                    <h3>Registrar Nuevo Producto con Variante</h3>
                     <div class="grid-pos" style="grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div>
                             <label style="font-size: 0.85rem;">Nombre del Producto:</label>
                             <input type="text" id="nuevo-nombre" placeholder="Ej: Vestido Elegante">
-                            <label style="font-size: 0.85rem;">Variante (Talla / Color / Modelo):</label>
+                            <label style="font-size: 0.85rem;">Variante (Talla / Color):</label>
                             <input type="text" id="nuevo-variante" placeholder="Ej: M / Negro">
                         </div>
                         <div>
                             <label style="font-size: 0.85rem;">Precio ($):</label>
                             <input type="number" id="nuevo-precio" placeholder="0.00" step="0.1">
-                            <label style="font-size: 0.85rem;">Stock Disponible:</label>
-                            <input type="number" id="nuevo-stock" placeholder="10" value="10">
+                            <div style="display: flex; gap: 15px; margin-top: 10px;">
+                                <div style="flex-grow: 1;">
+                                    <label style="font-size: 0.85rem;">Stock Disponible:</label>
+                                    <input type="number" id="nuevo-stock" placeholder="10" value="10" style="margin-top:2px;">
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; padding-top: 20px;">
+                                    <input type="checkbox" id="nuevo-cashea" checked style="width: 20px; height: 20px; accent-color: var(--rouge);">
+                                    <label style="font-size: 0.9rem; cursor: pointer;" for="nuevo-cashea">Aplica Cashea</label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <button onclick="agregarProductoNuevo()" style="margin-top: 15px; width: 100%;">Guardar Producto en Inventario</button>
@@ -415,14 +437,14 @@
             <div id="tab-caja" class="panel-content hidden">
                 <h2>Cierre de Caja Diario (Corte Z)</h2>
                 <div class="card" style="background: #151515; border: 1px solid var(--muted-pink); max-width: 600px;">
-                    <h3 style="color: var(--soft-pink);">Reporte General - Blessings</h3>
+                    <h3 style="color: var(--soft-pink);">Reporte General - Blessings Yaya</h3>
                     <p style="margin-top: 10px;">Fecha: <span id="fecha-hoy"></span></p>
                     <hr style="border-color: var(--border-dark); margin: 15px 0;">
                     <p>Total de Transacciones: <strong id="cierre-cant-ventas">0</strong></p>
                     <p style="margin-top: 8px;">💵 Efectivo USD: <strong id="cierre-efectivo">$0.00</strong></p>
                     <p style="margin-top: 8px;">📱 Zelle: <strong id="cierre-zelle">$0.00</strong></p>
                     <p style="margin-top: 8px;">🇻🇪 Pago Móvil (Bs): <strong id="cierre-pagomovil">Bs. 0.00</strong></p>
-                    <p style="margin-top: 8px;">🛍️ Cashea (Inicial/Financiado): <strong id="cierre-cashea">$0.00</strong></p>
+                    <p style="margin-top: 8px; color: #ff75a0;">🛍️ Cashea (Iniciales Cobradas): <strong id="cierre-cashea">$0.00</strong></p>
                     <hr style="border-color: var(--border-dark); margin: 15px 0;">
                     <p style="font-size: 1.3rem;">Ingreso Total en Caja: <strong id="cierre-total" style="color: var(--soft-pink);">$0.00</strong></p>
                 </div>
@@ -432,13 +454,13 @@
 
     </div>
 
-    <!-- MODAL DE PAGOS MIXTOS -->
+    <!-- MODAL DE PAGOS MIXTOS CON CASHEA -->
     <div id="modal-pago" class="modal-overlay hidden">
         <div class="modal-card">
-            <h3 style="color: var(--soft-pink);">Gestionar Pago Mixto</h3>
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">Divide el monto total entre los métodos disponibles:</p>
+            <h3 style="color: var(--soft-pink);">Gestionar Pagos Mixtos y Cashea</h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px;">Divide el monto total o registra la inicial correspondiente a Cashea:</p>
             
-            <p id="modal-total-etiqueta" style="font-weight: bold; margin-bottom: 15px;"></p>
+            <p id="modal-total-etiqueta" style="font-weight: bold; margin-bottom: 12px; color: var(--soft-pink);"></p>
 
             <label style="font-size: 0.85rem;">Efectivo USD ($):</label>
             <input type="number" id="pago-efectivo" value="0" step="0.1">
@@ -449,10 +471,11 @@
             <label style="font-size: 0.85rem;">Pago Móvil Bs (Convertido a $):</label>
             <input type="number" id="pago-pagomovil" value="0" step="0.1">
 
-            <label style="font-size: 0.85rem;">Cashea ($):</label>
+            <label style="font-size: 0.85rem; color: #ff75a0;">Inicial Cashea Cobrada ($):</label>
             <input type="number" id="pago-cashea" value="0" step="0.1">
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 8px;">* Ingresa aquí únicamente el monto de la inicial que el cliente paga hoy por Cashea.</p>
 
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button onclick="cerrarModalPago()" style="background: #333; flex: 1;">Cancelar</button>
                 <button onclick="confirmarPagoMixto()" style="background: var(--success); flex: 1;">Confirmar Cobro</button>
             </div>
@@ -462,16 +485,15 @@
     <script>
         let currentUser = null;
         let inventario = [
-            { id: '1', nombre: 'Vestido Satén', variante: 'S / Negro', precio: 35.00, stock: 8 },
-            { id: '2', nombre: 'Vestido Satén', variante: 'M / Rosa Soft', precio: 35.00, stock: 5 },
-            { id: '3', nombre: 'Blusa Casual', variante: 'S / Blanco', precio: 20.00, stock: 12 },
-            { id: '4', nombre: 'Jeans Tiro Alto', variante: '32 / Azul Oscuro', precio: 45.00, stock: 7 }
+            { id: '1', nombre: 'Vestido Satén', variante: 'S / Negro', precio: 35.00, stock: 8, cashea: true },
+            { id: '2', nombre: 'Vestido Satén', variante: 'M / Rosa Soft', precio: 35.00, stock: 5, cashea: true },
+            { id: '3', nombre: 'Blusa Casual', variante: 'S / Blanco', precio: 20.00, stock: 12, cashea: true },
+            { id: '4', nombre: 'Jeans Tiro Alto', variante: '32 / Azul Oscuro', precio: 45.00, stock: 7, cashea: true }
         ];
 
         let pedidoActual = [];
         let productoSeleccionadoPOS = null;
         
-        // Acumuladores de caja
         let statsCaja = { ventas: 0, efectivo: 0, zelle: 0, pagomovil: 0, cashea: 0, total: 0 };
 
         function login() {
@@ -516,19 +538,22 @@
             let contenedor = document.getElementById('lista-productos-pos');
             contenedor.innerHTML = '';
             productoSeleccionadoPOS = null;
+            document.getElementById('cashea-calc-box').style.display = 'none';
             let texto = filtro.toLowerCase();
 
             inventario.forEach(item => {
                 let infoCompleta = `${item.nombre} ${item.variante}`.toLowerCase();
                 if(infoCompleta.includes(texto)) {
+                    let casheaBadge = item.cashea ? `<span class="tag-cashea">⚡ Aplica Cashea</span>` : '';
                     contenedor.innerHTML += `
                         <div class="producto-card" onclick="seleccionarPOS('${item.id}', this)">
                             <div>
                                 <strong style="font-size: 0.95rem; color: var(--text-main);">${item.nombre}</strong>
                                 <div style="font-size: 0.8rem; color: var(--muted-pink); margin-top:2px;">${item.variante}</div>
                                 <div style="font-size: 0.75rem; color: var(--text-muted); margin-top:4px;">Stock: ${item.stock}</div>
+                                <div>${casheaBadge}</div>
                             </div>
-                            <div style="font-size: 1.05rem; font-weight: bold; color: var(--soft-pink); margin-top: 10px;">$${item.precio.toFixed(2)}</div>
+                            <div style="font-size: 1.05rem; font-weight: bold; color: var(--soft-pink); margin-top: 8px;">$${item.precio.toFixed(2)}</div>
                         </div>
                     `;
                 }
@@ -544,6 +569,17 @@
             document.querySelectorAll('.producto-card').forEach(el => el.classList.remove('selected'));
             elemento.classList.add('selected');
             productoSeleccionadoPOS = id;
+
+            let item = inventario.find(i => i.id === id);
+            if(item && item.cashea) {
+                let inicial = item.precio * 0.40;
+                let restoCuotas = (item.precio * 0.60) / 3;
+                document.getElementById('cashea-inicial-txt').innerText = `$${inicial.toFixed(2)}`;
+                document.getElementById('cashea-cuota-txt').innerText = `$${restoCuotas.toFixed(2)}`;
+                document.getElementById('cashea-calc-box').style.display = 'block';
+            } else {
+                document.getElementById('cashea-calc-box').style.display = 'none';
+            }
         }
 
         function agregarAlPedido() {
@@ -566,7 +602,7 @@
             if(existe) {
                 existe.cantidad += cant;
             } else {
-                pedidoActual.push({ id: item.id, nombre: `${item.nombre} (${item.variante})`, precio: item.precio, cantidad: cant });
+                pedidoActual.push({ id: item.id, nombre: `${item.nombre} (${item.variante})`, precio: item.precio, cantidad: cant, cashea: item.cashea });
             }
 
             document.getElementById('buscador-productos').value = '';
@@ -592,7 +628,8 @@
             pedidoActual.forEach(item => {
                 let sub = item.precio * item.cantidad;
                 subtotalUSD += sub;
-                html += `<li style="font-size: 0.85rem; margin-bottom: 4px;">${item.cantidad}x ${item.nombre} - $${sub.toFixed(2)}</li>`;
+                let badgeC = item.cashea ? " <span style='color:#ff75a0; font-size:0.75rem;'>(Cashea OK)</span>" : "";
+                html += `<li style="font-size: 0.85rem; margin-bottom: 4px;">${item.cantidad}x ${item.nombre} - $${sub.toFixed(2)}${badgeC}</li>`;
             });
             html += "</ul>";
             contenedor.innerHTML = html;
@@ -614,11 +651,17 @@
                 return;
             }
             let total = calcularTotalActualUSD();
-            document.getElementById('modal-total-etiqueta').innerText = `Monto a Cobrar: $${total.toFixed(2)} USD`;
-            document.getElementById('pago-efectivo').value = total.toFixed(2);
+            
+            let sugeridoCashea = 0;
+            pedidoActual.forEach(i => {
+                if(i.cashea) sugeridoCashea += (i.precio * i.cantidad) * 0.40;
+            });
+
+            document.getElementById('modal-total-etiqueta').innerText = `Monto Total Venta: $${total.toFixed(2)} USD`;
+            document.getElementById('pago-efectivo').value = (total - sugeridoCashea).toFixed(2);
             document.getElementById('pago-zelle').value = 0;
             document.getElementById('pago-pagomovil').value = 0;
-            document.getElementById('pago-cashea').value = 0;
+            document.getElementById('pago-cashea').value = sugeridoCashea.toFixed(2);
             document.getElementById('modal-pago').classList.remove('hidden');
         }
 
@@ -635,11 +678,10 @@
 
             let sumaPagos = efec + zell + pmov + cash;
             if(Math.abs(sumaPagos - totalVenta) > 0.05) {
-                alert(`La suma de los métodos ($${sumaPagos.toFixed(2)}) no coincide con el total de la venta ($${totalVenta.toFixed(2)}).`);
+                alert(`La suma de los pagos ($${sumaPagos.toFixed(2)}) no coincide con el total de la venta ($${totalVenta.toFixed(2)}).`);
                 return;
             }
 
-            // Registrar estadísticas
             statsCaja.ventas += 1;
             statsCaja.efectivo += efec;
             statsCaja.zelle += zell;
@@ -648,7 +690,7 @@
             statsCaja.total += totalVenta;
 
             actualizarVistaCaja();
-            alert("¡Venta procesada y cobrada con éxito!");
+            alert("¡Venta y financiamiento Cashea procesados con éxito!");
             
             pedidoActual = [];
             document.getElementById('descuento-input').value = 0;
@@ -677,6 +719,7 @@
                         <td>${item.variante}</td>
                         <td><input type="number" value="${item.precio}" step="0.1" ${disabledAttr} onchange="editarInv(${index}, 'precio', this.value)" style="width:80px; margin:0; padding:4px;"></td>
                         <td><input type="number" value="${item.stock}" ${disabledAttr} onchange="editarInv(${index}, 'stock', this.value)" style="width:70px; margin:0; padding:4px;"></td>
+                        <td><input type="checkbox" ${item.cashea ? 'checked' : ''} ${disabledAttr} onchange="editarInvCashea(${index}, this.checked)"></td>
                         <td>${currentUser === 'admin' ? `<button onclick="eliminarInv(${index})" style="background:var(--danger); padding:4px 8px; font-size:0.75rem;">Eliminar</button>` : '<span style="color:var(--text-muted); font-size:0.8rem;">Solo lectura</span>'}</td>
                     </tr>
                 `;
@@ -686,11 +729,21 @@
 
         function editarInv(index, campo, valor) {
             if(currentUser !== 'admin') {
-                alert("Solo el Administrador puede modificar precios o stock directamente.");
+                alert("Solo el Administrador puede modificar precios o stock.");
                 renderizarInventario();
                 return;
             }
             inventario[index][campo] = parseFloat(valor);
+            renderizarInventario();
+        }
+
+        function editarInvCashea(index, val) {
+            if(currentUser !== 'admin') {
+                alert("Solo el Administrador puede modificar esto.");
+                renderizarInventario();
+                return;
+            }
+            inventario[index].cashea = val;
             renderizarInventario();
         }
 
@@ -706,6 +759,7 @@
             let variante = document.getElementById('nuevo-variante').value;
             let precio = parseFloat(document.getElementById('nuevo-precio').value);
             let stock = parseInt(document.getElementById('nuevo-stock').value);
+            let cashea = document.getElementById('nuevo-cashea').checked;
 
             if(!nombre || !variante || isNaN(precio) || isNaN(stock)) {
                 alert("Completa todos los campos correctamente.");
@@ -713,12 +767,13 @@
             }
 
             let nuevoId = String(Date.now());
-            inventario.push({ id: nuevoId, nombre, variante, precio, stock });
+            inventario.push({ id: nuevoId, nombre, variante, precio, stock, cashea });
 
             document.getElementById('nuevo-nombre').value = '';
             document.getElementById('nuevo-variante').value = '';
             document.getElementById('nuevo-precio').value = '';
             document.getElementById('nuevo-stock').value = '10';
+            document.getElementById('nuevo-cashea').checked = true;
             renderizarInventario();
         }
     </script>
