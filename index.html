@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blessings - Sistema POS e Inventario con Cashea</title>
     <link rel="icon" type="image/png" href="logo.png">
+    <!-- Librería para convertir HTML en Imagen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
@@ -303,6 +305,25 @@
             font-size: 0.75rem;
             text-transform: uppercase;
         }
+
+        /* ESTILOS PARA IMPRESIÓN DE TICKET / FACTURA */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #ticket-impresion-area, #ticket-impresion-area * {
+                visibility: visible;
+            }
+            #ticket-impresion-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                color: black !important;
+                padding: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -436,7 +457,12 @@
             <!-- TAB 3: CIERRE DE CAJA -->
             <div id="tab-caja" class="panel-content hidden">
                 <h2>Cierre de Caja Diario (Corte Z)</h2>
-                <div class="card" style="background: #151515; border: 1px solid var(--muted-pink); max-width: 600px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button onclick="descargarCierreImagen()" style="background: var(--muted-pink);">📸 Compartir Cierre como Imagen</button>
+                </div>
+                
+                <!-- Contenedor optimizado para captura de imagen -->
+                <div id="caja-captura-area" class="card" style="background: #151515; border: 1px solid var(--muted-pink); max-width: 600px;">
                     <h3 style="color: var(--soft-pink);">Reporte General - Blessings Yaya</h3>
                     <p style="margin-top: 10px;">Fecha: <span id="fecha-hoy"></span></p>
                     <hr style="border-color: var(--border-dark); margin: 15px 0;">
@@ -477,9 +503,24 @@
 
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button onclick="cerrarModalPago()" style="background: #333; flex: 1;">Cancelar</button>
-                <button onclick="confirmarPagoMixto()" style="background: var(--success); flex: 1;">Confirmar Cobro</button>
+                <button onclick="confirmarPagoMixto()" style="background: var(--success); flex: 1;">Confirmar y Facturar</button>
             </div>
         </div>
+    </div>
+
+    <!-- ÁREA OCULTA PARA IMPRESIÓN DE FACTURA / TICKET -->
+    <div id="ticket-impresion-area" class="hidden" style="font-family: monospace; padding: 20px; width: 300px; background: white; color: black;">
+        <div style="text-align: center;">
+            <h3 style="margin: 0; font-size: 1.2rem;">BLESSINGS YAYA</h3>
+            <p style="font-size: 0.75rem; margin: 2px 0;">Sistema POS e Inventario</p>
+            <p style="font-size: 0.75rem; margin: 2px 0;" id="factura-fecha"></p>
+        </div>
+        <hr style="border: dashed 1px black; margin: 10px 0;">
+        <div id="factura-items" style="font-size: 0.8rem;"></div>
+        <hr style="border: dashed 1px black; margin: 10px 0;">
+        <div id="factura-totales" style="font-size: 0.85rem;"></div>
+        <hr style="border: dashed 1px black; margin: 10px 0;">
+        <p style="text-align: center; font-size: 0.75rem; margin-top: 10px;">¡Gracias por su compra!<br>Vuelva pronto</p>
     </div>
 
     <script>
@@ -493,8 +534,8 @@
 
         let pedidoActual = [];
         let productoSeleccionadoPOS = null;
-        
         let statsCaja = { ventas: 0, efectivo: 0, zelle: 0, pagomovil: 0, cashea: 0, total: 0 };
+        let ultimaVentaDetalle = null;
 
         function login() {
             let u = document.getElementById('user-input').value.trim().toLowerCase();
@@ -689,13 +730,62 @@
             statsCaja.cashea += cash;
             statsCaja.total += totalVenta;
 
+            // Guardamos detalle para la factura
+            ultimaVentaDetalle = {
+                items: [...pedidoActual],
+                total: totalVenta,
+                efec, zell, pmov, cash,
+                fecha: new Date().toLocaleString()
+            };
+
             actualizarVistaCaja();
+            
+            // Generar e imprimir factura automáticamente
+            generarEImprimirFactura(ultimaVentaDetalle);
+
             alert("¡Venta y financiamiento Cashea procesados con éxito!");
             
             pedidoActual = [];
             document.getElementById('descuento-input').value = 0;
             cerrarModalPago();
             renderizarPedido();
+        }
+
+        function generarEImprimirFactura(venta) {
+            let tasa = parseFloat(document.getElementById('tasa-cambio').value) || 1;
+            document.getElementById('factura-fecha').innerText = venta.fecha;
+            
+            let htmlItems = "";
+            venta.items.forEach(i => {
+                htmlItems += `<div style="display:flex; justify-content:space-between;"><span>${i.cantidad}x ${i.nombre}</span><span>$${(i.precio * i.cantidad).toFixed(2)}</span></div>`;
+            });
+            document.getElementById('factura-items').innerHTML = htmlItems;
+
+            let htmlTotales = `
+                <div style="display:flex; justify-content:space-between;"><span>TOTAL USD:</span><strong>$${venta.total.toFixed(2)}</strong></div>
+                <div style="display:flex; justify-content:space-between;"><span>TOTAL Bs:</span><strong>Bs. ${(venta.total * tasa).toFixed(2)}</strong></div>
+                <hr style="border: dotted 1px black; margin: 5px 0;">
+                <div style="font-size:0.75rem;">Formas de Pago:</div>
+                ${venta.efec > 0 ? `<div>- Efectivo: $${venta.efec.toFixed(2)}</div>` : ''}
+                ${venta.zell > 0 ? `<div>- Zelle: $${venta.zell.toFixed(2)}</div>` : ''}
+                ${venta.pmov > 0 ? `<div>- Pago Móvil: $${venta.pmov.toFixed(2)}</div>` : ''}
+                ${venta.cash > 0 ? `<div>- Cashea (Inicial): $${venta.cash.toFixed(2)}</div>` : ''}
+            `;
+            document.getElementById('factura-totales').innerHTML = htmlTotales;
+
+            // Ventana de impresión del navegador
+            window.print();
+        }
+
+        function descargarCierreImagen() {
+            let elemento = document.getElementById('caja-captura-area');
+            html2canvas(elemento, { backgroundColor: '#151515', scale: 2 }).then(canvas => {
+                let enlace = document.createElement('a');
+                enlace.download = `Cierre_Caja_Blessings_${new Date().toLocaleDateString()}.png`;
+                enlace.href = canvas.toDataURL('image/png');
+                enlace.enlaceClick = enlace.click();
+                enlace.click();
+            });
         }
 
         function actualizarVistaCaja() {
