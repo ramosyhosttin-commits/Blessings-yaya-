@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blessings - Sistema POS e Inventario con Cashea</title>
+    <title>Blessings - Sistema POS e Inventario</title>
     <link rel="icon" type="image/png" href="logo.png">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -34,7 +34,7 @@
             overflow: hidden;
         }
 
-        /* Layout Principal */
+        /* Sidebar */
         .sidebar {
             width: 260px;
             background-color: var(--card-dark);
@@ -68,66 +68,53 @@
             color: var(--primary-pink);
         }
 
-        .main-content {
+        /* Vistas Principales */
+        .main-container {
             flex: 1;
             display: flex;
             overflow: hidden;
+            position: relative;
         }
 
-        .view-section {
-            flex: 1;
+        .section-view {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            background-color: var(--bg-dark);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .section-view.active-view {
             display: flex;
-            overflow: hidden;
+        }
+
+        /* VISTA POS */
+        #viewPos {
+            display: none;
+        }
+        #viewPos.active-view {
+            display: flex;
         }
 
         .catalog-section {
             flex: 2;
-            padding: 20px;
+            padding-right: 20px;
             overflow-y: auto;
             border-right: 1px solid var(--border-dark);
         }
 
         .checkout-section {
-            flex: 1.2;
+            flex: 1.3;
             background-color: var(--card-dark);
             padding: 20px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             overflow-y: auto;
-        }
-
-        /* Sección de Configuración */
-        .config-section {
-            flex: 1;
-            padding: 30px;
-            overflow-y: auto;
-            background-color: var(--bg-dark);
-            display: none;
-        }
-
-        .config-card {
-            background-color: var(--card-dark);
-            border: 1px solid var(--border-dark);
-            padding: 25px;
+            margin-left: 20px;
             border-radius: 12px;
-            max-width: 600px;
-        }
-
-        .config-card h3 {
-            margin-bottom: 20px;
-            color: var(--primary-pink);
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 5px;
+            border: 1px solid var(--border-dark);
         }
 
         h3 {
@@ -136,10 +123,9 @@
             color: var(--text-main);
         }
 
-        /* Grid de Productos */
         .product-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 15px;
         }
 
@@ -169,11 +155,17 @@
             font-size: 0.9rem;
         }
 
+        .product-card span {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
         /* Carrito */
         .cart-items {
             flex: 1;
             overflow-y: auto;
             margin-bottom: 15px;
+            max-height: 180px;
         }
 
         .cart-item {
@@ -185,7 +177,6 @@
             font-size: 0.9rem;
         }
 
-        /* Controles de Pago y Facturación */
         .payment-methods {
             margin-bottom: 15px;
         }
@@ -228,12 +219,12 @@
         }
 
         .total-row.final {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 700;
             color: var(--primary-pink);
         }
 
-        .btn-pay, .btn-save {
+        .btn-action {
             background-color: var(--primary-pink);
             color: white;
             border: none;
@@ -245,11 +236,44 @@
             transition: 0.2s;
         }
 
-        .btn-pay:hover, .btn-save:hover {
+        .btn-action:hover {
             background-color: var(--primary-pink-hover);
         }
 
-        /* Modal de Factura Fiscal */
+        /* Paneles de Config, Inventario y Cierres */
+        .panel-box {
+            background-color: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            padding: 25px;
+            border-radius: 12px;
+            max-width: 700px;
+            margin-bottom: 20px;
+        }
+
+        .panel-box h3 {
+            color: var(--primary-pink);
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-dark);
+        }
+
+        th {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        /* Modal Factura Fiscal */
         .modal {
             display: none;
             position: fixed;
@@ -267,7 +291,7 @@
             width: 380px;
             border-radius: 8px;
             font-family: 'Courier New', Courier, monospace;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
         }
 
         .invoice-header {
@@ -314,29 +338,12 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
-        /* Estilo exclusivo para impresión física real */
         @media print {
-            body * {
-                visibility: hidden;
-            }
-            #invoiceModal, #invoiceModal * {
-                visibility: visible;
-            }
-            #invoiceModal {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                background: none;
-            }
-            .modal-buttons {
-                display: none;
-            }
-            .invoice-box {
-                box-shadow: none;
-                width: 100%;
-                padding: 0;
-            }
+            body * { visibility: hidden; }
+            #invoiceModal, #invoiceModal * { visibility: visible; }
+            #invoiceModal { position: absolute; left: 0; top: 0; width: 100%; background: none; }
+            .modal-buttons { display: none; }
+            .invoice-box { box-shadow: none; width: 100%; padding: 0; }
         }
     </style>
 </head>
@@ -344,87 +351,153 @@
 
     <div class="sidebar">
         <h2>🛍️ Blessings POS</h2>
-        <button class="menu-btn active" id="btnPos" onclick="cambiarVista('pos')">Punto de Venta</button>
-        <button class="menu-btn" id="btnConfig" onclick="cambiarVista('config')">Configuración RIF</button>
+        <button class="menu-btn active" id="mPos" onclick="cambiarVista('pos')">Punto de Venta</button>
+        <button class="menu-btn" id="mInv" onclick="cambiarVista('inventario')">Gestión de Inventario</button>
+        <button class="menu-btn" id="mCaja" onclick="cambiarVista('caja')">Cierre de Caja</button>
+        <button class="menu-btn" id="mConfig" onclick="cambiarVista('config')">Configuración RIF & Tasa</button>
     </div>
 
-    <!-- VISTA POS -->
-    <div class="main-content" id="viewPos">
-        <div class="catalog-section">
-            <h3>Catálogo de Productos</h3>
-            <div class="product-grid" id="productGrid">
-                <!-- Generado por JS -->
-            </div>
-        </div>
+    <div class="main-container">
 
-        <div class="checkout-section">
-            <div>
-                <h3>Venta Actual</h3>
-                <div class="cart-items" id="cartItems">
-                    <p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona productos...</p>
-                </div>
+        <!-- 1. VISTA POS -->
+        <div class="section-view active-view" id="viewPos">
+            <div class="catalog-section">
+                <h3>Catálogo de Productos</h3>
+                <div class="product-grid" id="productGrid"></div>
             </div>
 
-            <div>
-                <div class="payment-methods">
-                    <label>Método de Pago:</label>
-                    <select id="paymentMethod" onchange="toggleCasheaField()">
-                        <option value="Efectivo">Efectivo ($ / Bs)</option>
-                        <option value="Punto de Venta">Punto de Venta Bancario</option>
-                        <option value="Zelle">Zelle</option>
-                        <option value="Cashea">Cashea (Financiamiento)</option>
-                    </select>
-
-                    <div id="casheaContainer" style="display: none;">
-                        <label>N° de Referencia Cashea:</label>
-                        <input type="text" id="casheaRef" placeholder="Ej: CAS-982374">
+            <div class="checkout-section">
+                <div>
+                    <h3>Venta Actual</h3>
+                    <div class="cart-items" id="cartItems">
+                        <p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona productos...</p>
                     </div>
                 </div>
 
-                <div class="totals">
-                    <div class="total-row">
-                        <span>Subtotal:</span>
-                        <span id="subTotal">$0.00</span>
+                <div>
+                    <div class="payment-methods">
+                        <label>Método de Pago:</label>
+                        <select id="paymentMethod" onchange="toggleCasheaField()">
+                            <option value="Efectivo USD">Efectivo ($)</option>
+                            <option value="Efectivo Bs">Efectivo (Bs)</option>
+                            <option value="Punto de Venta">Punto de Venta Bancario</option>
+                            <option value="Pago Móvil">Pago Móvil</option>
+                            <option value="Zelle">Zelle</option>
+                            <option value="Cashea">Cashea (Financiamiento)</option>
+                        </select>
+
+                        <div id="casheaContainer" style="display: none; background: rgba(255,42,117,0.05); padding: 10px; border-radius: 8px; border: 1px dashed var(--primary-pink); margin-top: 8px;">
+                            <label style="color: var(--primary-pink); font-weight: 600;">Opciones de Cashea:</label>
+                            <input type="text" id="casheaRef" placeholder="N° de Referencia / Cédula" style="margin-bottom: 5px;">
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Ingrese los datos de validación de Cashea.</span>
+                        </div>
                     </div>
-                    <div class="total-row final">
-                        <span>Total:</span>
-                        <span id="finalTotal">$0.00</span>
+
+                    <div class="totals">
+                        <div class="total-row">
+                            <span>Subtotal:</span>
+                            <span id="subTotal">$0.00</span>
+                        </div>
+                        <div class="total-row">
+                            <span>Total en Bs (Tasa: <span id="lblTasa">36.50</span>):</span>
+                            <span id="totalBs">Bs 0.00</span>
+                        </div>
+                        <div class="total-row final">
+                            <span>Total USD:</span>
+                            <span id="finalTotal">$0.00</span>
+                        </div>
                     </div>
+
+                    <button class="btn-action" onclick="procesarVenta()">Procesar y Facturar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. VISTA INVENTARIO -->
+        <div class="section-view" id="viewInventario">
+            <div style="width: 100%; max-width: 900px;">
+                <div class="panel-box">
+                    <h3>➕ Agregar Nuevo Producto</h3>
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
+                        <input type="text" id="newProdName" placeholder="Nombre del producto">
+                        <input type="number" id="newProdPrice" placeholder="Precio USD ($)" step="0.01">
+                        <input type="number" id="newProdStock" placeholder="Stock inicial">
+                    </div>
+                    <button class="btn-action" style="margin-top: 10px;" onclick="agregarProducto()">Guardar en Inventario</button>
                 </div>
 
-                <button class="btn-pay" onclick="procesarVenta()">Procesar y Facturar</button>
+                <div class="panel-box" style="max-width: 100%;">
+                    <h3>📦 Stock Actual de Productos</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Precio ($)</th>
+                                <th>Stock Disponible</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- VISTA CONFIGURACION RIF -->
-    <div class="config-section" id="viewConfig">
-        <div class="config-card">
-            <h3>⚙️ Datos Fiscales del Comercio</h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Configura aquí los datos de tu cliente para que aparezcan automáticamente en la cabecera de todas las facturas impresas.</p>
-            
-            <div class="form-group">
-                <label>Nombre o Razón Social:</label>
-                <input type="text" id="storeName" placeholder="Ej: INVERSIONES BLESSINGS, C.A.">
+        <!-- 3. VISTA CIERRE DE CAJA -->
+        <div class="section-view" id="viewCaja">
+            <div style="width: 100%; max-width: 800px;">
+                <div class="panel-box" style="max-width: 100%;">
+                    <h3>📊 Resumen de Caja Actual (Día)</h3>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 1rem;">
+                        <span>Total Ventas Realizadas: <strong id="cajaTotalVentas">0</strong></span>
+                        <span>Monto Acumulado: <strong style="color: var(--primary-pink);" id="cajaMontoTotal">$0.00</strong></span>
+                    </div>
+                    <button class="btn-action" onclick="realizarCierreCaja()">🔒 Ejecutar Cierre de Caja (Z)</button>
+                </div>
+
+                <div class="panel-box" style="max-width: 100%;">
+                    <h3>📜 Historial de Cierres Anteriores</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>Total Transacciones</th>
+                                <th>Monto Total ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historialCierresBody"></tbody>
+                    </table>
+                </div>
             </div>
-
-            <div class="form-group">
-                <label>RIF de la Empresa:</label>
-                <input type="text" id="storeRif" placeholder="Ej: J-40123456-8">
-            </div>
-
-            <div class="form-group">
-                <label>Dirección Fiscal:</label>
-                <input type="text" id="storeAddress" placeholder="Ej: Av. Principal, Local Comercial, C.C.">
-            </div>
-
-            <button class="btn-save" onclick="guardarConfig()">Guardar Cambios</button>
         </div>
+
+        <!-- 4. VISTA CONFIGURACIÓN RIF & TASA -->
+        <div class="section-view" id="viewConfig">
+            <div class="panel-box">
+                <h3>⚙ Datos Fiscales & Tasa del Día</h3>
+                
+                <label style="color: var(--text-muted); font-size: 0.85rem;">Razón Social / Nombre de la Tienda:</label>
+                <input type="text" id="storeName" placeholder="INVERSIONES BLESSINGS, C.A.">
+
+                <label style="color: var(--text-muted); font-size: 0.85rem;">RIF de la Empresa:</label>
+                <input type="text" id="storeRif" placeholder="J-40123456-8">
+
+                <label style="color: var(--text-muted); font-size: 0.85rem;">Dirección Fiscal:</label>
+                <input type="text" id="storeAddress" placeholder="Av. Principal, Local Comercial">
+
+                <label style="color: var(--text-muted); font-size: 0.85rem; margin-top: 10px; display: block;">Tasa Cambiaria BCV (Bs por 1 USD):</label>
+                <input type="number" id="storeTasa" placeholder="36.50" step="0.01">
+
+                <button class="btn-action" style="margin-top: 15px;" onclick="guardarConfig()">Guardar Configuración</button>
+            </div>
+        </div>
+
     </div>
 
     <!-- Modal Factura Fiscal -->
     <div class="modal" id="invoiceModal">
-        <div class="invoice-box" id="invoiceContent">
+        <div class="invoice-box">
             <div class="invoice-header">
                 <h3 id="printStoreName">INVERSIONES BLESSINGS, C.A.</h3>
                 <p id="printStoreRif">RIF: J-40123456-8</p>
@@ -433,13 +506,11 @@
                 <p><strong>FACTURA FISCAL</strong></p>
                 <p id="invNum">Nro: 00000125</p>
             </div>
-            <div id="invBody">
-                <!-- Detalles de productos -->
-            </div>
+            <div id="invBody"></div>
             <div class="invoice-footer">
-                <p id="invPaymentMethod">Método: Efectivo</p>
+                <p id="invPaymentMethod">Método: Efectivo USD</p>
                 <p>¡Gracias por su compra!</p>
-                <p>Sistema POS integrado con Cashea</p>
+                <p>Sistema POS integrado</p>
             </div>
             <div class="modal-buttons">
                 <button class="btn-print" onclick="window.print()">🖨️ Imprimir Factura</button>
@@ -449,73 +520,79 @@
     </div>
 
     <script>
-        // Cargar datos guardados o valores por defecto
+        // --- BASE DE DATOS LOCALSTORAGE ---
         let configStore = {
             name: localStorage.getItem('store_name') || "INVERSIONES BLESSINGS, C.A.",
             rif: localStorage.getItem('store_rif') || "J-40123456-8",
-            address: localStorage.getItem('store_address') || "Av. Principal, Local Comercial"
+            address: localStorage.getItem('store_address') || "Av. Principal, Local Comercial",
+            tasa: parseFloat(localStorage.getItem('store_tasa')) || 36.50
         };
 
-        // Rellenar inputs de config al iniciar
+        let products = JSON.parse(localStorage.getItem('store_products')) || [
+            { id: 1, name: "Zapatos Deportivos", price: 45.00, stock: 12 },
+            { id: 2, name: "Chemise Casual", price: 20.00, stock: 25 },
+            { id: 3, name: "Pantalón Jean", price: 35.00, stock: 8 },
+            { id: 4, name: "Gorra Urbana", price: 15.00, stock: 30 }
+        ];
+
+        let ventasDia = JSON.parse(localStorage.getItem('store_ventas_dia')) || [];
+        let historialCierres = JSON.parse(localStorage.getItem('store_cierres')) || [];
+        let cart = [];
+
+        // Inicializar datos en inputs de configuración
         document.getElementById('storeName').value = configStore.name;
         document.getElementById('storeRif').value = configStore.rif;
         document.getElementById('storeAddress').value = configStore.address;
+        document.getElementById('storeTasa').value = configStore.tasa;
+        document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
 
-        function guardarConfig() {
-            configStore.name = document.getElementById('storeName').value || "NEGOCIO SIN NOMBRE";
-            configStore.rif = document.getElementById('storeRif').value || "J-00000000-0";
-            configStore.address = document.getElementById('storeAddress').value || "Dirección no especificada";
-
-            localStorage.setItem('store_name', configStore.name);
-            localStorage.setItem('store_rif', configStore.rif);
-            localStorage.setItem('store_address', configStore.address);
-
-            alert("¡Datos fiscales actualizados con éxito!");
-            cambiarVista('pos');
-        }
-
+        // --- NAVEGACIÓN ENTRE VISTAS ---
         function cambiarVista(vista) {
-            const viewPos = document.getElementById('viewPos');
-            const viewConfig = document.getElementById('viewConfig');
-            const btnPos = document.getElementById('btnPos');
-            const btnConfig = document.getElementById('btnConfig');
+            document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active-view'));
+            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
 
             if (vista === 'pos') {
-                viewPos.style.display = 'flex';
-                viewConfig.style.display = 'none';
-                btnPos.classList.add('active');
-                btnConfig.classList.remove('active');
-            } else {
-                viewPos.style.display = 'none';
-                viewConfig.style.display = 'block';
-                btnConfig.classList.add('active');
-                btnPos.classList.remove('active');
+                document.getElementById('viewPos').classList.add('active-view');
+                document.getElementById('mPos').classList.add('active');
+                initCatalog();
+            } else if (vista === 'inventario') {
+                document.getElementById('viewInventario').classList.add('active-view');
+                document.getElementById('mInv').classList.add('active');
+                renderInventarioTable();
+            } else if (vista === 'caja') {
+                document.getElementById('viewCaja').classList.add('active-view');
+                document.getElementById('mCaja').classList.add('active');
+                renderCajaData();
+            } else if (vista === 'config') {
+                document.getElementById('viewConfig').classList.add('active-view');
+                document.getElementById('mConfig').classList.add('active');
             }
         }
 
-        const products = [
-            { id: 1, name: "Zapatos Deportivos", price: 45.00 },
-            { id: 2, name: "Chemise Casual", price: 20.00 },
-            { id: 3, name: "Pantalón Jean", price: 35.00 },
-            { id: 4, name: "Gorra Urbana", price: 15.00 }
-        ];
-
-        let cart = [];
-
+        // --- MÓDULO POS ---
         function initCatalog() {
             const grid = document.getElementById('productGrid');
             grid.innerHTML = products.map(p => `
                 <div class="product-card" onclick="addToCart(${p.id})">
                     <h4>${p.name}</h4>
                     <p>$${p.price.toFixed(2)}</p>
+                    <span>Stock: ${p.stock}</span>
                 </div>
             `).join('');
         }
 
         function addToCart(id) {
             const prod = products.find(p => p.id === id);
+            if (prod.stock <= 0) {
+                alert("¡Producto agotado!");
+                return;
+            }
             const existing = cart.find(item => item.id === id);
             if (existing) {
+                if (existing.qty >= prod.stock) {
+                    alert("No hay más stock disponible de este producto.");
+                    return;
+                }
                 existing.qty++;
             } else {
                 cart.push({ ...prod, qty: 1 });
@@ -528,6 +605,7 @@
             if (cart.length === 0) {
                 container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona productos...</p>';
                 document.getElementById('subTotal').innerText = '$0.00';
+                document.getElementById('totalBs').innerText = 'Bs 0.00';
                 document.getElementById('finalTotal').innerText = '$0.00';
                 return;
             }
@@ -544,14 +622,15 @@
                 `;
             }).join('');
 
+            let totalBs = total * configStore.tasa;
             document.getElementById('subTotal').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('totalBs').innerText = `Bs ${totalBs.toFixed(2)}`;
             document.getElementById('finalTotal').innerText = `$${total.toFixed(2)}`;
         }
 
         function toggleCasheaField() {
             const method = document.getElementById('paymentMethod').value;
-            const casheaContainer = document.getElementById('casheaContainer');
-            casheaContainer.style.display = method === 'Cashea' ? 'block' : 'none';
+            document.getElementById('casheaContainer').style.display = method === 'Cashea' ? 'block' : 'none';
         }
 
         function procesarVenta() {
@@ -566,18 +645,33 @@
             if (method === 'Cashea') {
                 const ref = document.getElementById('casheaRef').value;
                 if (!ref) {
-                    alert("Por favor ingresa el número de referencia de Cashea.");
+                    alert("Por favor ingresa la referencia o cédula de Cashea.");
                     return;
                 }
                 paymentDetails += ` (Ref: ${ref})`;
             }
 
-            // Inyectar datos de configuración actualizados a la factura
+            // Descontar stock
+            cart.forEach(item => {
+                let p = products.find(prod => prod.id === item.id);
+                if (p) p.stock -= item.qty;
+            });
+            localStorage.setItem('store_products', JSON.stringify(products));
+
+            // Registrar venta para cierre de caja
+            let total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            ventasDia.push({
+                fecha: new Date().toLocaleString(),
+                total: total,
+                metodo: paymentDetails
+            });
+            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
+
+            // Mostrar Factura
             document.getElementById('printStoreName').innerText = configStore.name;
             document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
             document.getElementById('printStoreAddress').innerText = configStore.address;
 
-            let total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             let bodyHTML = `
                 <p>Fecha: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
                 <p>----------------------------------------</p>
@@ -587,9 +681,11 @@
                 bodyHTML += `<div style="display:flex; justify-content:space-between;"><span>${item.qty}x ${item.name}</span><span>$${(item.price * item.qty).toFixed(2)}</span></div>`;
             });
 
+            let totalBs = total * configStore.tasa;
             bodyHTML += `
                 <p>----------------------------------------</p>
-                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size: 1rem;"><span>TOTAL:</span><span>$${total.toFixed(2)}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>TOTAL USD:</span><span>$${total.toFixed(2)}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:0.9rem;"><span>TOTAL Bs (Tasa ${configStore.tasa}):</span><span>Bs ${totalBs.toFixed(2)}</span></div>
             `;
 
             document.getElementById('invBody').innerHTML = bodyHTML;
@@ -601,9 +697,113 @@
             document.getElementById('invoiceModal').style.display = 'none';
             cart = [];
             document.getElementById('casheaRef').value = '';
-            document.getElementById('paymentMethod').value = 'Efectivo';
+            document.getElementById('paymentMethod').value = 'Efectivo USD';
             toggleCasheaField();
             renderCart();
+            initCatalog();
+        }
+
+        // --- MÓDULO INVENTARIO ---
+        function agregarProducto() {
+            const name = document.getElementById('newProdName').value;
+            const price = parseFloat(document.getElementById('newProdPrice').value);
+            const stock = parseInt(document.getElementById('newProdStock').value);
+
+            if (!name || isNaN(price) || isNaN(stock)) {
+                alert("Por favor completa todos los campos correctamente.");
+                return;
+            }
+
+            const newId = products.length > 0 ? products[products.length - 1].id + 1 : 1;
+            products.push({ id: newId, name, price, stock });
+            localStorage.setItem('store_products', JSON.stringify(products));
+
+            document.getElementById('newProdName').value = '';
+            document.getElementById('newProdPrice').value = '';
+            document.getElementById('newProdStock').value = '';
+
+            alert("¡Producto agregado con éxito!");
+            renderInventarioTable();
+        }
+
+        function eliminarProducto(id) {
+            products = products.filter(p => p.id !== id);
+            localStorage.setItem('store_products', JSON.stringify(products));
+            renderInventarioTable();
+        }
+
+        function renderInventarioTable() {
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = products.map(p => `
+                <tr>
+                    <td>#${p.id}</td>
+                    <td>${p.name}</td>
+                    <td>$${p.price.toFixed(2)}</td>
+                    <td>${p.stock} unids.</td>
+                    <td><button onclick="eliminarProducto(${p.id})" style="background:#ff2a75; color:#fff; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">Eliminar</button></td>
+                </tr>
+            `).join('');
+        }
+
+        // --- MÓDULO CIERRE DE CAJA ---
+        function renderCajaData() {
+            let totalVentas = ventasDia.length;
+            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
+
+            document.getElementById('cajaTotalVentas').innerText = totalVentas;
+            document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
+
+            const tbody = document.getElementById('historialCierresBody');
+            if (historialCierres.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay cierres anteriores registrados.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = historialCierres.map(c => `
+                <tr>
+                    <td>${c.fecha}</td>
+                    <td>${c.transacciones} ventas</td>
+                    <td>$${c.monto.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function realizarCierreCaja() {
+            if (ventasDia.length === 0) {
+                alert("No hay ventas registradas en el turno actual para cerrar.");
+                return;
+            }
+
+            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
+            historialCierres.unshift({
+                fecha: new Date().toLocaleString(),
+                transacciones: ventasDia.length,
+                monto: montoTotal
+            });
+
+            localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
+            ventasDia = [];
+            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
+
+            alert("¡Cierre de caja (Z) ejecutado con éxito!");
+            renderCajaData();
+        }
+
+        // --- MÓDULO CONFIGURACIÓN ---
+        function guardarConfig() {
+            configStore.name = document.getElementById('storeName').value || "NEGOCIO";
+            configStore.rif = document.getElementById('storeRif').value || "J-00000000-0";
+            configStore.address = document.getElementById('storeAddress').value || "Dirección";
+            configStore.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
+
+            localStorage.setItem('store_name', configStore.name);
+            localStorage.setItem('store_rif', configStore.rif);
+            localStorage.setItem('store_address', configStore.address);
+            localStorage.setItem('store_tasa', configStore.tasa);
+            document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
+
+            alert("¡Configuración y tasa actualizadas correctamente!");
+            cambiarVista('pos');
         }
 
         initCatalog();
