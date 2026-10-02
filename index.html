@@ -102,6 +102,8 @@
             padding-right: 20px;
             overflow-y: auto;
             border-right: 1px solid var(--border-dark);
+            display: flex;
+            flex-direction: column;
         }
 
         .checkout-section {
@@ -123,10 +125,30 @@
             color: var(--text-main);
         }
 
+        /* Buscador */
+        .search-box {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            color: var(--text-main);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box:focus {
+            border-color: var(--primary-pink);
+        }
+
         .product-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 15px;
+            overflow-y: auto;
+            flex: 1;
         }
 
         .product-card {
@@ -136,6 +158,7 @@
             padding: 12px;
             cursor: pointer;
             transition: 0.2s;
+            height: fit-content;
         }
 
         .product-card:hover {
@@ -363,6 +386,7 @@
         <div class="section-view active-view" id="viewPos">
             <div class="catalog-section">
                 <h3>Catálogo de Productos</h3>
+                <input type="text" id="searchProduct" class="search-box" placeholder="🔍 Buscar producto por nombre..." oninput="filtrarProductos()">
                 <div class="product-grid" id="productGrid"></div>
             </div>
 
@@ -554,6 +578,7 @@
             if (vista === 'pos') {
                 document.getElementById('viewPos').classList.add('active-view');
                 document.getElementById('mPos').classList.add('active');
+                document.getElementById('searchProduct').value = '';
                 initCatalog();
             } else if (vista === 'inventario') {
                 document.getElementById('viewInventario').classList.add('active-view');
@@ -570,15 +595,25 @@
         }
 
         // --- MÓDULO POS ---
-        function initCatalog() {
+        function initCatalog(lista = products) {
             const grid = document.getElementById('productGrid');
-            grid.innerHTML = products.map(p => `
+            if (lista.length === 0) {
+                grid.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No se encontraron productos.</p>';
+                return;
+            }
+            grid.innerHTML = lista.map(p => `
                 <div class="product-card" onclick="addToCart(${p.id})">
                     <h4>${p.name}</h4>
                     <p>$${p.price.toFixed(2)}</p>
                     <span>Stock: ${p.stock}</span>
                 </div>
             `).join('');
+        }
+
+        function filtrarProductos() {
+            const texto = document.getElementById('searchProduct').value.toLowerCase();
+            const filtrados = products.filter(p => p.name.toLowerCase().includes(texto));
+            initCatalog(filtrados);
         }
 
         function addToCart(id) {
