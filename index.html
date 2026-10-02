@@ -168,6 +168,7 @@
             padding: 10px 20px;
             gap: 10px;
             border-bottom: 1px solid var(--border-dark);
+            flex-wrap: wrap;
         }
 
         .tab-btn {
@@ -306,7 +307,6 @@
             text-transform: uppercase;
         }
 
-        /* ESTILOS PARA IMPRESIÓN DE TICKET / FACTURA */
         @media print {
             body * {
                 visibility: hidden;
@@ -364,6 +364,7 @@
                 <button class="tab-btn active" onclick="switchTab('pos')">🛒 Caja / POS</button>
                 <button class="tab-btn" onclick="switchTab('inventario')">📦 Inventario y Variantes</button>
                 <button class="tab-btn" onclick="switchTab('caja')">📊 Cierre de Caja (Corte Z)</button>
+                <button class="tab-btn" onclick="switchTab('historial')">🔍 Historial por Fecha</button>
             </div>
 
             <!-- TAB 1: POS -->
@@ -459,9 +460,9 @@
                 <h2>Cierre de Caja Diario (Corte Z)</h2>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <button onclick="descargarCierreImagen()" style="background: var(--muted-pink);">📸 Compartir Cierre como Imagen</button>
+                    <button onclick="guardarCierreHoy()" style="background: var(--success);">💾 Guardar Cierre de Hoy</button>
                 </div>
                 
-                <!-- Contenedor optimizado para captura de imagen -->
                 <div id="caja-captura-area" class="card" style="background: #151515; border: 1px solid var(--muted-pink); max-width: 600px;">
                     <h3 style="color: var(--soft-pink);">Reporte General - Blessings Yaya</h3>
                     <p style="margin-top: 10px;">Fecha: <span id="fecha-hoy"></span></p>
@@ -473,6 +474,24 @@
                     <p style="margin-top: 8px; color: #ff75a0;">🛍️ Cashea (Iniciales Cobradas): <strong id="cierre-cashea">$0.00</strong></p>
                     <hr style="border-color: var(--border-dark); margin: 15px 0;">
                     <p style="font-size: 1.3rem;">Ingreso Total en Caja: <strong id="cierre-total" style="color: var(--soft-pink);">$0.00</strong></p>
+                </div>
+            </div>
+
+            <!-- TAB 4: HISTORIAL DE REPORTES POR FECHA -->
+            <div id="tab-historial" class="panel-content hidden">
+                <h2>Historial de Ventas y Cierres Guardados</h2>
+                <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9rem;">Busca por fecha (ej. 10/1/2026) para revisar reportes y re-imprimir facturas anteriores.</p>
+
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <div style="flex-grow: 1;">
+                        <input type="text" id="filtro-fecha-input" placeholder="🔍 Ingresa la fecha (ej: 10/1/2026 o DD/MM/AAAA)">
+                    </div>
+                    <button onclick="buscarHistorial()">Buscar</button>
+                    <button onclick="cargarHistorialCompleto()" style="background: #333;">Ver Todo</button>
+                </div>
+
+                <div id="contenedor-historial">
+                    <p style="color: var(--text-muted);">No hay registros seleccionados.</p>
                 </div>
             </div>
 
@@ -535,7 +554,6 @@
         let pedidoActual = [];
         let productoSeleccionadoPOS = null;
         let statsCaja = { ventas: 0, efectivo: 0, zelle: 0, pagomovil: 0, cashea: 0, total: 0 };
-        let ultimaVentaDetalle = null;
 
         function login() {
             let u = document.getElementById('user-input').value.trim().toLowerCase();
@@ -554,6 +572,7 @@
                 renderizarPOS();
                 renderizarInventario();
                 document.getElementById('fecha-hoy').innerText = new Date().toLocaleDateString();
+                cargarHistorialCompleto();
             } else {
                 alert("Credenciales incorrectas. Usa admin/1234 o cajero/1234");
             }
@@ -572,6 +591,10 @@
             } else if(tabName === 'caja') {
                 document.getElementById('tab-caja').classList.remove('hidden');
                 event.target.classList.add('active');
+            } else if(tabName === 'historial') {
+                document.getElementById('tab-historial').classList.remove('hidden');
+                event.target.classList.add('active');
+                cargarHistorialCompleto();
             }
         }
 
@@ -730,20 +753,22 @@
             statsCaja.cashea += cash;
             statsCaja.total += totalVenta;
 
-            // Guardamos detalle para la factura
-            ultimaVentaDetalle = {
+            let ventaDetalle = {
+                tipo: 'venta',
+                fechaHora: new Date().toLocaleString(),
+                soloFecha: new Date().toLocaleDateString(),
                 items: [...pedidoActual],
                 total: totalVenta,
-                efec, zell, pmov, cash,
-                fecha: new Date().toLocaleString()
+                efec, zell, pmov, cash
             };
 
-            actualizarVistaCaja();
-            
-            // Generar e imprimir factura automáticamente
-            generarEImprimirFactura(ultimaVentaDetalle);
+            // Guardar venta en localStorage
+            guardarRegistroEnStorage(ventaDetalle);
 
-            alert("¡Venta y financiamiento Cashea procesados con éxito!");
+            actualizarVistaCaja();
+            generarEImprimirFactura(ventaDetalle);
+
+            alert("¡Venta y financiamiento Cashea procesados y guardados con éxito!");
             
             pedidoActual = [];
             document.getElementById('descuento-input').value = 0;
@@ -751,9 +776,86 @@
             renderizarPedido();
         }
 
+        function guardarCierreHoy() {
+            let cierreDetalle = {
+                tipo: 'cierre',
+                fechaHora: new Date().toLocaleString(),
+                soloFecha: new Date().toLocaleDateString(),
+                ...statsCaja
+            };
+            guardarRegistroEnStorage(cierreDetalle);
+            alert("¡Cierre de caja guardado en el sistema con éxito!");
+            switchTab('historial');
+        }
+
+        function guardarRegistroEnStorage(registro) {
+            let historial = JSON.parse(localStorage.getItem('blessings_historial')) || [];
+            historial.unshift(registro); // Añadir al inicio
+            localStorage.setItem('blessings_historial', JSON.stringify(historial));
+        }
+
+        function cargarHistorialCompleto() {
+            let historial = JSON.parse(localStorage.getItem('blessings_historial')) || [];
+            mostrarHistorialEnPantalla(historial);
+        }
+
+        function buscarHistorial() {
+            let busqueda = document.getElementById('filtro-fecha-input').value.trim();
+            let historial = JSON.parse(localStorage.getItem('blessings_historial')) || [];
+            
+            if(!busqueda) {
+                cargarHistorialCompleto();
+                return;
+            }
+
+            let filtrado = historial.filter(h => h.soloFecha.includes(busqueda));
+            mostrarHistorialEnPantalla(filtrado);
+        }
+
+        function mostrarHistorialEnPantalla(lista) {
+            let contenedor = document.getElementById('contenedor-historial');
+            if(lista.length === 0) {
+                contenedor.innerHTML = '<p style="color: var(--text-muted);">No se encontraron registros para esa fecha.</p>';
+                return;
+            }
+
+            let html = "";
+            lista.forEach((item, index) => {
+                if(item.tipo === 'venta') {
+                    let itemsNombres = item.items.map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
+                    html += `
+                        <div class="card" style="margin-bottom: 12px; background: #161616;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: var(--soft-pink); font-weight: bold;">🧾 Venta - ${item.fechaHora}</span>
+                                <span style="font-size: 1.1rem; color: var(--success); font-weight: bold;">$${item.total.toFixed(2)}</span>
+                            </div>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 6px;">Productos: ${itemsNombres}</p>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Pagos: Efec: $${item.efec.toFixed(2)} | Zelle: $${item.zell.toFixed(2)} | P.Móvil: $${item.pmov.toFixed(2)} | Cashea: $${item.cash.toFixed(2)}</p>
+                            <button onclick='reImprimirVenta(${JSON.stringify(item)})' style="margin-top: 10px; padding: 6px 12px; font-size: 0.8rem; background: var(--muted-pink);">🖨️ Re-imprimir Factura</button>
+                        </div>
+                    `;
+                } else if(item.tipo === 'cierre') {
+                    html += `
+                        <div class="card" style="margin-bottom: 12px; background: #1b161c; border-color: var(--muted-pink);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: var(--soft-pink); font-weight: bold;">📊 Cierre de Caja (Corte Z) - ${item.fechaHora}</span>
+                                <span style="font-size: 1.1rem; color: var(--soft-pink); font-weight: bold;">Total: $${item.total.toFixed(2)}</span>
+                            </div>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 6px;">Transacciones: ${item.ventas} | Efec: $${item.efectivo.toFixed(2)} | Zelle: $${item.zelle.toFixed(2)} | P.Móvil: $${item.pagomovil.toFixed(2)} | Cashea: $${item.cashea.toFixed(2)}</p>
+                        </div>
+                    `;
+                }
+            });
+            contenedor.innerHTML = html;
+        }
+
+        function reImprimirVenta(venta) {
+            generarEImprimirFactura(venta);
+        }
+
         function generarEImprimirFactura(venta) {
             let tasa = parseFloat(document.getElementById('tasa-cambio').value) || 1;
-            document.getElementById('factura-fecha').innerText = venta.fecha;
+            document.getElementById('factura-fecha').innerText = venta.fechaHora;
             
             let htmlItems = "";
             venta.items.forEach(i => {
@@ -773,7 +875,6 @@
             `;
             document.getElementById('factura-totales').innerHTML = htmlTotales;
 
-            // Ventana de impresión del navegador
             window.print();
         }
 
@@ -783,7 +884,6 @@
                 let enlace = document.createElement('a');
                 enlace.download = `Cierre_Caja_Blessings_${new Date().toLocaleDateString()}.png`;
                 enlace.href = canvas.toDataURL('image/png');
-                enlace.enlaceClick = enlace.click();
                 enlace.click();
             });
         }
