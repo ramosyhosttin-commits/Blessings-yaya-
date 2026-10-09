@@ -295,7 +295,7 @@
             border: 1px solid var(--border-dark);
             padding: 25px;
             border-radius: 12px;
-            max-width: 700px;
+            max-width: 900px;
             margin-bottom: 20px;
         }
 
@@ -507,14 +507,27 @@
 
         <!-- 3. VISTA CIERRE DE CAJA -->
         <div class="section-view" id="viewCaja">
-            <div style="width: 100%; max-width: 800px;">
+            <div style="width: 100%; max-width: 900px;">
                 <div class="panel-box" style="max-width: 100%;">
-                    <h3>📊 Resumen de Caja Actual (Día)</h3>
+                    <h3>📊 Resumen del Turno Actual</h3>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 1rem;">
-                        <span>Total Ventas Realizadas: <strong id="cajaTotalVentas">0</strong></span>
+                        <span>Total Ventas: <strong id="cajaTotalVentas">0</strong></span>
                         <span>Monto Acumulado: <strong style="color: var(--primary-pink);" id="cajaMontoTotal">$0.00</strong></span>
                     </div>
-                    <button class="btn-action" onclick="realizarCierreCaja()">🔒 Ejecutar Cierre de Caja (Z)</button>
+
+                    <h4 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 8px;">Detalle Venta por Venta (Turno Actual):</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Hora / Fecha</th>
+                                <th>Método / Detalles</th>
+                                <th>Monto Total ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ventasDiaBody"></tbody>
+                    </table>
+
+                    <button class="btn-action" style="margin-top: 20px;" onclick="realizarCierreCaja()">🔒 Ejecutar Cierre de Caja (Z)</button>
                 </div>
 
                 <div class="panel-box" style="max-width: 100%;">
@@ -854,6 +867,21 @@
             document.getElementById('cajaTotalVentas').innerText = totalVentas;
             document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
 
+            // Renderizar detalle venta por venta
+            const ventasBody = document.getElementById('ventasDiaBody');
+            if (ventasDia.length === 0) {
+                ventasBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay ventas registradas en este turno.</td></tr>`;
+            } else {
+                ventasBody.innerHTML = ventasDia.map(v => `
+                    <tr>
+                        <td>${v.fecha}</td>
+                        <td style="font-size:0.85rem;">${v.metodo}</td>
+                        <td style="font-weight:600; color:var(--primary-pink);">$${v.total.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Historial de cierres anteriores
             const tbody = document.getElementById('historialCierresBody');
             if (historialCierres.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay cierres anteriores registrados.</td></tr>`;
