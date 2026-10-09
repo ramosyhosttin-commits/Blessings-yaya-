@@ -449,8 +449,19 @@
 
                         <div id="casheaContainer" style="display: none; background: rgba(255,42,117,0.05); padding: 10px; border-radius: 8px; border: 1px dashed var(--primary-pink); margin-top: 8px;">
                             <label style="color: var(--primary-pink); font-weight: 600;">Opciones de Cashea:</label>
+                            
+                            <label style="font-size: 0.8rem; margin-top: 5px; color: var(--text-muted);">Nivel Oficial del Cliente:</label>
+                            <select id="casheaLevel">
+                                <option value="0.60">Nivel 1 (60% Inicial)</option>
+                                <option value="0.50">Nivel 2 (50% Inicial)</option>
+                                <option value="0.40" selected>Nivel 3 (40% Inicial)</option>
+                                <option value="0.40">Nivel 4 (40% Inicial Base / 25% Promocional)</option>
+                                <option value="0.40">Nivel 5 (40% Inicial Base / 20% Promocional)</option>
+                                <option value="0.40">Nivel 6 (40% Inicial Base / 0% Promocional)</option>
+                            </select>
+
                             <input type="text" id="casheaRef" placeholder="N° de Referencia / Cédula" style="margin-bottom: 5px;">
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">Mínimo $25. Se calculará 40% de Inicial.</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Mínimo $25. Se calcula la inicial según el nivel oficial.</span>
                         </div>
                     </div>
 
@@ -739,6 +750,7 @@
             const method = document.getElementById('paymentMethod').value;
             let paymentDetails = `Método: ${method}`;
 
+            let porcentajeInicial = 0.40; // Por defecto Nivel 3
             if (method === 'Cashea') {
                 if (total < 25) {
                     alert("Error: El monto mínimo para compras con Cashea es de $25.00 USD.");
@@ -749,9 +761,14 @@
                     alert("Por favor ingresa la referencia o cédula de Cashea.");
                     return;
                 }
-                let inicial = total * 0.40;
+                
+                // Obtener porcentaje según el nivel oficial seleccionado
+                porcentajeInicial = parseFloat(document.getElementById('casheaLevel').value);
+                let nivelTexto = document.getElementById('casheaLevel').selectedOptions[0].text;
+
+                let inicial = total * porcentajeInicial;
                 let financiado = total - inicial;
-                paymentDetails += ` (Ref: ${ref}) - Inicial (40%): $${inicial.toFixed(2)} | Financiado: $${financiado.toFixed(2)}`;
+                paymentDetails += ` (${nivelTexto}) (Ref: ${ref}) - Inicial: $${inicial.toFixed(2)} | Financiado: $${financiado.toFixed(2)}`;
             }
 
             // Descontar stock
@@ -790,10 +807,11 @@
             `;
 
             if (method === 'Cashea') {
-                let inicial = total * 0.40;
+                let inicial = total * porcentajeInicial;
                 let restante = total - inicial;
+                let porcText = (porcentajeInicial * 100) + "%";
                 bodyHTML += `
-                    <div style="display:flex; justify-content:space-between; color:#ff2a75;"><span>INICIAL CASHEA (40%):</span><span>$${inicial.toFixed(2)}</span></div>
+                    <div style="display:flex; justify-content:space-between; color:#ff2a75;"><span>INICIAL CASHEA (${porcText}):</span><span>$${inicial.toFixed(2)}</span></div>
                     <div style="display:flex; justify-content:space-between; color:#ff2a75;"><span>RESTO FINANCIADO:</span><span>$${restante.toFixed(2)}</span></div>
                 `;
             }
