@@ -737,8 +737,8 @@
                     return;
                 }
                 let inicial = total * 0.40;
-                let financiado = total - 0.40;
-                paymentDetails += ` (Ref: ${ref}) - Inicial (40%): $${inicial.toFixed(2)} | Financiado: $${(total - inicial).toFixed(2)}`;
+                let financiado = total - inicial;
+                paymentDetails += ` (Ref: ${ref}) - Inicial (40%): $${inicial.toFixed(2)} | Financiado: $${financiado.toFixed(2)}`;
             }
 
             // Descontar stock
@@ -824,3 +824,90 @@
             document.getElementById('newProdStock').value = '';
 
             alert("¡Producto agregado con éxito!");
+            renderInventarioTable();
+        }
+
+        function eliminarProducto(id) {
+            products = products.filter(p => p.id !== id);
+            localStorage.setItem('store_products', JSON.stringify(products));
+            renderInventarioTable();
+        }
+
+        function renderInventarioTable() {
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = products.map(p => `
+                <tr>
+                    <td>#${p.id}</td>
+                    <td>${p.name}</td>
+                    <td>$${p.price.toFixed(2)}</td>
+                    <td>${p.stock} unids.</td>
+                    <td><button onclick="eliminarProducto(${p.id})" style="background:#ff2a75; color:#fff; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">Eliminar</button></td>
+                </tr>
+            `).join('');
+        }
+
+        // --- MÓDULO CIERRE DE CAJA ---
+        function renderCajaData() {
+            let totalVentas = ventasDia.length;
+            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
+
+            document.getElementById('cajaTotalVentas').innerText = totalVentas;
+            document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
+
+            const tbody = document.getElementById('historialCierresBody');
+            if (historialCierres.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay cierres anteriores registrados.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = historialCierres.map(c => `
+                <tr>
+                    <td>${c.fecha}</td>
+                    <td>${c.transacciones} ventas</td>
+                    <td>$${c.monto.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function realizarCierreCaja() {
+            if (ventasDia.length === 0) {
+                alert("No hay ventas registradas en el turno actual para cerrar.");
+                return;
+            }
+
+            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
+            historialCierres.unshift({
+                fecha: new Date().toLocaleString(),
+                transacciones: ventasDia.length,
+                monto: montoTotal
+            });
+
+            localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
+            ventasDia = [];
+            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
+
+            alert("¡Cierre de caja (Z) ejecutado con éxito!");
+            renderCajaData();
+        }
+
+        // --- MÓDULO CONFIGURACIÓN ---
+        function guardarConfig() {
+            configStore.name = document.getElementById('storeName').value || "NEGOCIO";
+            configStore.rif = document.getElementById('storeRif').value || "J-00000000-0";
+            configStore.address = document.getElementById('storeAddress').value || "Dirección";
+            configStore.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
+
+            localStorage.setItem('store_name', configStore.name);
+            localStorage.setItem('store_rif', configStore.rif);
+            localStorage.setItem('store_address', configStore.address);
+            localStorage.setItem('store_tasa', configStore.tasa);
+            document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
+
+            alert("¡Configuración y tasa actualizadas correctamente!");
+            cambiarVista('pos');
+        }
+
+        initCatalog();
+    </script>
+</body>
+</html>
