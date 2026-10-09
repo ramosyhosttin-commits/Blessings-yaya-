@@ -34,6 +34,32 @@
             overflow: hidden;
         }
 
+        /* Pantalla de Login */
+        #loginOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .login-box {
+            background-color: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            padding: 30px;
+            border-radius: 12px;
+            width: 350px;
+            text-align: center;
+        }
+
+        .login-box h2 {
+            color: var(--primary-pink);
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+        }
+
         /* Sidebar */
         .sidebar {
             width: 260px;
@@ -372,6 +398,17 @@
 </head>
 <body>
 
+    <!-- PANTALLA DE LOGIN -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2>🛍️ Blessings POS Login</h2>
+            <input type="text" id="loginUser" placeholder="Usuario" style="margin-bottom: 10px;">
+            <input type="password" id="loginPass" placeholder="Contraseña" style="margin-bottom: 15px;">
+            <button class="btn-action" onclick="verificarLogin()">Entrar al Sistema</button>
+            <p id="loginError" style="color: #ff2a75; font-size: 0.8rem; margin-top: 10px; display: none;">Usuario o contraseña incorrectos</p>
+        </div>
+    </div>
+
     <div class="sidebar">
         <h2>🛍️ Blessings POS</h2>
         <button class="menu-btn active" id="mPos" onclick="cambiarVista('pos')">Punto de Venta</button>
@@ -413,7 +450,7 @@
                         <div id="casheaContainer" style="display: none; background: rgba(255,42,117,0.05); padding: 10px; border-radius: 8px; border: 1px dashed var(--primary-pink); margin-top: 8px;">
                             <label style="color: var(--primary-pink); font-weight: 600;">Opciones de Cashea:</label>
                             <input type="text" id="casheaRef" placeholder="N° de Referencia / Cédula" style="margin-bottom: 5px;">
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">Ingrese los datos de validación de Cashea.</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Mínimo $25. Se calculará 40% de Inicial.</span>
                         </div>
                     </div>
 
@@ -544,6 +581,17 @@
     </div>
 
     <script>
+        // --- LOGIN ---
+        function verificarLogin() {
+            const u = document.getElementById('loginUser').value;
+            const p = document.getElementById('loginPass').value;
+            if (u === 'yaya' && p === '14094923') {
+                document.getElementById('loginOverlay').style.display = 'none';
+            } else {
+                document.getElementById('loginError').style.display = 'block';
+            }
+        }
+
         // --- BASE DE DATOS LOCALSTORAGE ---
         let configStore = {
             name: localStorage.getItem('store_name') || "INVERSIONES BLESSINGS, C.A.",
@@ -674,16 +722,23 @@
                 return;
             }
 
+            let total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             const method = document.getElementById('paymentMethod').value;
             let paymentDetails = `Método: ${method}`;
 
             if (method === 'Cashea') {
+                if (total < 25) {
+                    alert("Error: El monto mínimo para compras con Cashea es de $25.00 USD.");
+                    return;
+                }
                 const ref = document.getElementById('casheaRef').value;
                 if (!ref) {
                     alert("Por favor ingresa la referencia o cédula de Cashea.");
                     return;
                 }
-                paymentDetails += ` (Ref: ${ref})`;
+                let inicial = total * 0.40;
+                let financiado = total - 0.40;
+                paymentDetails += ` (Ref: ${ref}) - Inicial (40%): $${inicial.toFixed(2)} | Financiado: $${(total - inicial).toFixed(2)}`;
             }
 
             // Descontar stock
@@ -694,7 +749,6 @@
             localStorage.setItem('store_products', JSON.stringify(products));
 
             // Registrar venta para cierre de caja
-            let total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             ventasDia.push({
                 fecha: new Date().toLocaleString(),
                 total: total,
@@ -720,7 +774,19 @@
             bodyHTML += `
                 <p>----------------------------------------</p>
                 <div style="display:flex; justify-content:space-between;"><span>TOTAL USD:</span><span>$${total.toFixed(2)}</span></div>
-                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:0.9rem;"><span>TOTAL Bs (Tasa ${configStore.tasa}):</span><span>Bs ${totalBs.toFixed(2)}</span></div>
+            `;
+
+            if (method === 'Cashea') {
+                let inicial = total * 0.40;
+                let restante = total - inicial;
+                bodyHTML += `
+                    <div style="display:flex; justify-content:space-between; color:#ff2a75;"><span>INICIAL CASHEA (40%):</span><span>$${inicial.toFixed(2)}</span></div>
+                    <div style="display:flex; justify-content:space-between; color:#ff2a75;"><span>RESTO FINANCIADO:</span><span>$${restante.toFixed(2)}</span></div>
+                `;
+            }
+
+            bodyHTML += `
+                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:0.9rem; margin-top:5px;"><span>TOTAL Bs (Tasa ${configStore.tasa}):</span><span>Bs ${totalBs.toFixed(2)}</span></div>
             `;
 
             document.getElementById('invBody').innerHTML = bodyHTML;
@@ -758,90 +824,3 @@
             document.getElementById('newProdStock').value = '';
 
             alert("¡Producto agregado con éxito!");
-            renderInventarioTable();
-        }
-
-        function eliminarProducto(id) {
-            products = products.filter(p => p.id !== id);
-            localStorage.setItem('store_products', JSON.stringify(products));
-            renderInventarioTable();
-        }
-
-        function renderInventarioTable() {
-            const tbody = document.getElementById('inventoryTableBody');
-            tbody.innerHTML = products.map(p => `
-                <tr>
-                    <td>#${p.id}</td>
-                    <td>${p.name}</td>
-                    <td>$${p.price.toFixed(2)}</td>
-                    <td>${p.stock} unids.</td>
-                    <td><button onclick="eliminarProducto(${p.id})" style="background:#ff2a75; color:#fff; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">Eliminar</button></td>
-                </tr>
-            `).join('');
-        }
-
-        // --- MÓDULO CIERRE DE CAJA ---
-        function renderCajaData() {
-            let totalVentas = ventasDia.length;
-            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
-
-            document.getElementById('cajaTotalVentas').innerText = totalVentas;
-            document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
-
-            const tbody = document.getElementById('historialCierresBody');
-            if (historialCierres.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay cierres anteriores registrados.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = historialCierres.map(c => `
-                <tr>
-                    <td>${c.fecha}</td>
-                    <td>${c.transacciones} ventas</td>
-                    <td>$${c.monto.toFixed(2)}</td>
-                </tr>
-            `).join('');
-        }
-
-        function realizarCierreCaja() {
-            if (ventasDia.length === 0) {
-                alert("No hay ventas registradas en el turno actual para cerrar.");
-                return;
-            }
-
-            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
-            historialCierres.unshift({
-                fecha: new Date().toLocaleString(),
-                transacciones: ventasDia.length,
-                monto: montoTotal
-            });
-
-            localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
-            ventasDia = [];
-            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
-
-            alert("¡Cierre de caja (Z) ejecutado con éxito!");
-            renderCajaData();
-        }
-
-        // --- MÓDULO CONFIGURACIÓN ---
-        function guardarConfig() {
-            configStore.name = document.getElementById('storeName').value || "NEGOCIO";
-            configStore.rif = document.getElementById('storeRif').value || "J-00000000-0";
-            configStore.address = document.getElementById('storeAddress').value || "Dirección";
-            configStore.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
-
-            localStorage.setItem('store_name', configStore.name);
-            localStorage.setItem('store_rif', configStore.rif);
-            localStorage.setItem('store_address', configStore.address);
-            localStorage.setItem('store_tasa', configStore.tasa);
-            document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
-
-            alert("¡Configuración y tasa actualizadas correctamente!");
-            cambiarVista('pos');
-        }
-
-        initCatalog();
-    </script>
-</body>
-</html>
