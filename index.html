@@ -204,12 +204,12 @@
             color: var(--text-muted);
         }
 
-        /* Carrito */
+        /* Carrito de Compras con Control de Cantidad */
         .cart-items {
             flex: 1;
             overflow-y: auto;
             margin-bottom: 15px;
-            max-height: 200px;
+            max-height: 220px;
         }
 
         .cart-item {
@@ -218,7 +218,38 @@
             align-items: center;
             padding: 8px 0;
             border-bottom: 1px solid var(--border-dark);
-            font-size: 0.9rem;
+            font-size: 0.88rem;
+        }
+
+        .cart-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .qty-btn {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            border: 1px solid var(--border-dark);
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .qty-btn:hover {
+            border-color: var(--primary-pink);
+            color: var(--primary-pink);
+        }
+
+        .qty-input {
+            width: 40px !important;
+            padding: 2px 4px !important;
+            text-align: center;
+            margin: 0 !important;
+            font-size: 0.85rem !important;
         }
 
         .btn-remove-item {
@@ -229,7 +260,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
-            margin-left: 8px;
+            margin-left: 6px;
             transition: 0.2s;
         }
 
@@ -807,6 +838,28 @@
             renderCart();
         }
 
+        function updateCartQty(id, newQty) {
+            let qty = parseInt(newQty);
+            const prod = products.find(p => p.id.toString() === id.toString());
+            const item = cart.find(i => i.id.toString() === id.toString());
+
+            if (!item || !prod) return;
+
+            if (isNaN(qty) || qty <= 0) {
+                removeFromCart(id);
+                return;
+            }
+
+            if (qty > prod.stock) {
+                alert(`Solo hay ${prod.stock} unidades disponibles en stock.`);
+                item.qty = prod.stock;
+            } else {
+                item.qty = qty;
+            }
+
+            renderCart();
+        }
+
         function removeFromCart(id) {
             cart = cart.filter(item => item.id.toString() !== id.toString());
             renderCart();
@@ -828,10 +881,16 @@
                 total += sub;
                 return `
                     <div class="cart-item">
-                        <span>${item.name} (x${item.qty})</span>
-                        <div>
-                            <span>$${sub.toFixed(2)}</span>
-                            <button class="btn-remove-item" onclick="removeFromCart('${item.id}')" title="Eliminar del carrito">✖</button>
+                        <div style="flex: 1; padding-right: 5px;">
+                            <strong>${item.name}</strong>
+                            <div style="color: var(--text-muted); font-size: 0.78rem;">$${item.price.toFixed(2)} c/u</div>
+                        </div>
+                        <div class="cart-controls">
+                            <button class="qty-btn" onclick="updateCartQty('${item.id}', ${item.qty - 1})">-</button>
+                            <input type="number" class="qty-input" value="${item.qty}" min="1" onchange="updateCartQty('${item.id}', this.value)">
+                            <button class="qty-btn" onclick="updateCartQty('${item.id}', ${item.qty + 1})">+</button>
+                            <span style="font-weight: 600; min-width: 50px; text-align: right;">$${sub.toFixed(2)}</span>
+                            <button class="btn-remove-item" onclick="removeFromCart('${item.id}')" title="Eliminar">✖</button>
                         </div>
                     </div>
                 `;
