@@ -347,7 +347,6 @@
             margin-bottom: 15px;
         }
 
-        /* Tarjetas de Resumen por Método de Pago */
         .methods-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -612,7 +611,6 @@
                     <h3>📊 Resumen del Turno Actual</h3>
                     <p id="lblTurnoNum" style="color: var(--primary-pink); font-weight: 600; margin-bottom: 15px;">Turno Activo #1</p>
                     
-                    <!-- Tarjetas Desglosadas por Método de Pago -->
                     <div class="methods-grid">
                         <div class="method-card">
                             <h5>💵 Efectivo ($)</h5>
@@ -645,7 +643,6 @@
                         <span>Monto Acumulado Total: <strong style="color: var(--primary-pink); font-size: 1.2rem;" id="cajaMontoTotal">$0.00</strong></span>
                     </div>
 
-                    <!-- Filtro por Método de Pago -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <h4 style="font-size: 0.95rem; color: var(--text-muted);">Detalle de Ventas del Turno:</h4>
                         <div style="width: 220px;">
@@ -736,10 +733,11 @@
 
     <script>
         function verificarLogin() {
-            const u = document.getElementById('loginUser').value;
-            const p = document.getElementById('loginPass').value;
+            const u = document.getElementById('loginUser').value.trim();
+            const p = document.getElementById('loginPass').value.trim();
             if (u === 'yaya' && p === '14094923') {
                 document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('loginError').style.display = 'none';
             } else {
                 document.getElementById('loginError').style.display = 'block';
             }
@@ -754,7 +752,6 @@
 
         let products = JSON.parse(localStorage.getItem('store_products')) || [];
 
-        // Limpieza automática
         products = products.filter(p => {
             let name = String(p.name || '').toUpperCase();
             let id = String(p.id || '').trim();
@@ -920,3 +917,203 @@
 
             let metodo = document.getElementById('paymentMethod').value;
             let ventaObj = {
+                fecha: new Date().toLocaleString(),
+                metodo: metodo,
+                total: total,
+                items: [...cart]
+            };
+            ventasDia.push(ventaObj);
+            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
+
+            document.getElementById('printStoreName').innerText = configStore.name;
+            document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
+            document.getElementById('printStoreAddress').innerText = configStore.address;
+            document.getElementById('invNum').innerText = `Nro: 00000${Math.floor(Math.random() * 90000 + 10000)}`;
+            document.getElementById('invPaymentMethod').innerText = `Método: ${metodo}`;
+
+            let bodyHtml = `<table><tr><th>Cant Item</th><th>Total</th></tr>`;
+            cart.forEach(i => {
+                bodyHtml += `<tr><td>${i.qty}x ${i.name}</td><td>$${(i.price * i.qty).toFixed(2)}</td></tr>`;
+            });
+            bodyHtml += `</table><br><strong>TOTAL: $${total.toFixed(2)}</strong><br><strong>TOTAL Bs: ${(total * configStore.tasa).toFixed(2)}</strong>`;
+            document.getElementById('invBody').innerHTML = bodyHtml;
+            document.getElementById('invoiceModal').style.display = 'flex';
+
+            cart = [];
+            renderCart();
+            initCatalog();
+        }
+
+        function cerrarModal() {
+            document.getElementById('invoiceModal').style.display = 'none';
+        }
+
+        function renderInventarioTable() {
+            const tbody = document.getElementById('inventoryTableBody');
+            if (products.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="color:var(--text-muted); text-align:center;">No hay productos registrados.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = products.map(p => `
+                <tr>
+                    <td>${p.id}</td>
+                    <td><input type="text" class="table-input" value="${p.name}" onchange="guardarEdicionDirecta('${p.id}', 'name', this.value)"></td>
+                    <td><input type="number" class="table-input" step="0.01" value="${p.price}" onchange="guardarEdicionDirecta('${p.id}', 'price', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${p.stock}" onchange="guardarEdicionDirecta('${p.id}', 'stock', this.value)"></td>
+                    <td><button class="btn-delete" onclick="eliminarProducto('${p.id}')">🗑️ Borrar</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function guardarEdicionDirecta(id, campo, valor) {
+            let prod = products.find(p => String(p.id) === String(id));
+            if (prod) {
+                if (campo === 'price') prod.price = parseFloat(valor) || 0;
+                else if (campo === 'stock') prod.stock = parseInt(valor) || 0;
+                else prod[campo] = valor;
+                
+                localStorage.setItem('store_products', JSON.stringify(products));
+                initCatalog();
+            }
+        }
+
+        function agregarProducto() {
+            let id = document.getElementById('newProdCode').value.trim();
+            let name = document.getElementById('newProdName').value.trim();
+            let price = parseFloat(document.getElementById('newProdPrice').value);
+            let stock = parseInt(document.getElementById('newProdStock').value);
+            if (!id || !name || isNaN(price) || isNaN(stock)) { alert("Completa todos los campos correctamente."); return; }
+            
+            products.push({ id, name, price, stock });
+            localStorage.setItem('store_products', JSON.stringify(products));
+            
+            document.getElementById('newProdCode').value = '';
+            document.getElementById('newProdName').value = '';
+            document.getElementById('newProdPrice').value = '';
+            document.getElementById('newProdStock').value = '';
+            
+            renderInventarioTable();
+            initCatalog();
+            alert("Producto guardado con éxito.");
+        }
+
+        function eliminarProducto(id) {
+            if (confirm("¿Seguro que deseas eliminar este producto del inventario?")) {
+                products = products.filter(p => String(p.id).trim() !== String(id).trim());
+                localStorage.setItem('store_products', JSON.stringify(products));
+                renderInventarioTable();
+                initCatalog();
+            }
+        }
+
+        function renderCajaData() {
+            document.getElementById('lblTurnoNum').innerText = `Turno Activo #${currentTurnoNum}`;
+            
+            let mEfUSD = 0, mEfBs = 0, mPunto = 0, mPagoMovil = 0, mZelle = 0, mCashea = 0;
+
+            ventasDia.forEach(v => {
+                if (v.metodo === 'Efectivo USD') mEfUSD += v.total;
+                else if (v.metodo === 'Efectivo Bs') mEfBs += v.total;
+                else if (v.metodo === 'Punto de Venta') mPunto += v.total;
+                else if (v.metodo === 'Pago Móvil') mPagoMovil += v.total;
+                else if (v.metodo === 'Zelle') mZelle += v.total;
+                else if (v.metodo === 'Cashea') mCashea += v.total;
+            });
+
+            document.getElementById('mEfectivoUSD').innerText = `$${mEfUSD.toFixed(2)}`;
+            document.getElementById('mEfectivoBs').innerText = `$${mEfBs.toFixed(2)}`;
+            document.getElementById('mPunto').innerText = `$${mPunto.toFixed(2)}`;
+            document.getElementById('mPagoMovil').innerText = `$${mPagoMovil.toFixed(2)}`;
+            document.getElementById('mZelle').innerText = `$${mZelle.toFixed(2)}`;
+            document.getElementById('mCashea').innerText = `$${mCashea.toFixed(2)}`;
+
+            let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
+            document.getElementById('cajaTotalVentas').innerText = ventasDia.length;
+            document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
+
+            const filtro = document.getElementById('filterPaymentMethod').value;
+            let ventasFiltradas = ventasDia;
+            if (filtro !== 'TODOS') {
+                ventasFiltradas = ventasDia.filter(v => v.metodo === filtro);
+            }
+
+            const tbody = document.getElementById('ventasDiaBody');
+            if (ventasFiltradas.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="color:var(--text-muted); text-align:center;">No hay ventas registradas para este filtro.</td></tr>`;
+            } else {
+                tbody.innerHTML = ventasFiltradas.map(v => `
+                    <tr>
+                        <td>${v.fecha}</td>
+                        <td>${v.metodo}</td>
+                        <td>$${v.total.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+            }
+
+            const tbodyHist = document.getElementById('historialCierresBody');
+            if (historialCierres.length === 0) {
+                tbodyHist.innerHTML = `<tr><td colspan="4" style="color:var(--text-muted); text-align:center;">No hay turnos anteriores cerrados.</td></tr>`;
+            } else {
+                tbodyHist.innerHTML = historialCierres.map(h => `
+                    <tr>
+                        <td>Turno #${h.turno}</td>
+                        <td>${h.fecha}</td>
+                        <td>${h.totalTransacciones}</td>
+                        <td>$${h.montoTotal.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function descargarCierreImagen() {
+            const cajaBox = document.getElementById('cajaReporteBox');
+            html2canvas(cajaBox, { scale: 2, backgroundColor: '#1a1a1a' }).then(canvas => {
+                let link = document.createElement('a');
+                link.download = `Reporte_Turno_${currentTurnoNum}_${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        function realizarCierreCaja() {
+            if (ventasDia.length === 0) { alert("No hay ventas en este turno para cerrar."); return; }
+            if (!confirm(`¿Estás seguro de cerrar el Turno #${currentTurnoNum}? Se guardará el resumen por método de pago y comenzará un nuevo turno.`)) return;
+            
+            let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
+            
+            historialCierres.unshift({
+                turno: currentTurnoNum,
+                fecha: new Date().toLocaleString(),
+                totalTransacciones: ventasDia.length,
+                montoTotal: montoTotal
+            });
+            localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
+            
+            currentTurnoNum++;
+            localStorage.setItem('store_turno_num', currentTurnoNum);
+            
+            ventasDia = [];
+            localStorage.removeItem('store_ventas_dia');
+            
+            renderCajaData();
+            alert(`¡Turno cerrado con éxito! Iniciando Turno #${currentTurnoNum}.`);
+        }
+
+        function guardarConfig() {
+            configStore.name = document.getElementById('storeName').value;
+            configStore.rif = document.getElementById('storeRif').value;
+            configStore.address = document.getElementById('storeAddress').value;
+            configStore.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
+
+            localStorage.setItem('store_name', configStore.name);
+            localStorage.setItem('store_rif', configStore.rif);
+            localStorage.setItem('store_address', configStore.address);
+            localStorage.setItem('store_tasa', configStore.tasa);
+            document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
+            alert("¡Configuración guardada con éxito!");
+        }
+
+        initCatalog();
+    </script>
+</body>
+</html>
