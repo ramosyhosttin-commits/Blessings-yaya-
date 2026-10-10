@@ -546,9 +546,26 @@
                             <option value="Cashea">Cashea (Financiamiento)</option>
                         </select>
 
-                        <div id="casheaContainer" style="display: none; background: rgba(255,42,117,0.05); padding: 10px; border-radius: 8px; border: 1px dashed var(--primary-pink); margin-top: 8px;">
+                        <!-- CASILLA CASHEA CORREGIDA CON NIVEL E INICIAL -->
+                        <div id="casheaContainer" style="display: none; background: rgba(255,42,117,0.05); padding: 12px; border-radius: 8px; border: 1px dashed var(--primary-pink); margin-top: 8px;">
                             <label style="color: var(--primary-pink); font-weight: 600;">Opciones de Cashea:</label>
-                            <input type="text" id="casheaRef" placeholder="N° de Referencia / Cédula" style="margin-top: 5px;">
+                            
+                            <label style="font-size: 0.8rem; margin-top: 6px; color: var(--text-muted);">Nivel Oficial del Cliente:</label>
+                            <select id="casheaLevel" onchange="calcularInicialCashea()" style="margin-bottom: 8px; padding: 6px 8px;">
+                                <option value="0.60">Nivel 1 (60% Inicial)</option>
+                                <option value="0.50">Nivel 2 (50% Inicial)</option>
+                                <option value="0.40" selected>Nivel 3 (40% Inicial)</option>
+                                <option value="0.40">Nivel 4 (40% Inicial)</option>
+                                <option value="0.40">Nivel 5 (40% Inicial)</option>
+                                <option value="0.40">Nivel 6 (40% Inicial)</option>
+                            </select>
+
+                            <input type="text" id="casheaRef" placeholder="N° de Referencia / Cédula" style="margin-bottom: 8px;">
+                            
+                            <div style="background: var(--bg-dark); padding: 8px; border-radius: 6px; font-size: 0.8rem;">
+                                <p style="color: var(--text-muted);">Monto de Inicial a Cobrar:</p>
+                                <p style="color: var(--primary-pink); font-weight: 700; font-size: 0.95rem;" id="casheaInicialMonto">$0.00 (Bs 0.00)</p>
+                            </div>
                         </div>
                     </div>
 
@@ -874,6 +891,7 @@
                 document.getElementById('subTotal').innerText = '$0.00';
                 document.getElementById('totalBs').innerText = 'Bs 0.00';
                 document.getElementById('finalTotal').innerText = '$0.00';
+                calcularInicialCashea();
                 return;
             }
             let total = 0;
@@ -898,11 +916,27 @@
             document.getElementById('subTotal').innerText = `$${total.toFixed(2)}`;
             document.getElementById('totalBs').innerText = `Bs ${(total * configStore.tasa).toFixed(2)}`;
             document.getElementById('finalTotal').innerText = `$${total.toFixed(2)}`;
+            calcularInicialCashea();
         }
 
         function toggleCasheaField() {
             const method = document.getElementById('paymentMethod').value;
-            document.getElementById('casheaContainer').style.display = method === 'Cashea' ? 'block' : 'none';
+            const casheaBox = document.getElementById('casheaContainer');
+            if (method === 'Cashea') {
+                casheaBox.style.display = 'block';
+                calcularInicialCashea();
+            } else {
+                casheaBox.style.display = 'none';
+            }
+        }
+
+        function calcularInicialCashea() {
+            let total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+            let porcentaje = parseFloat(document.getElementById('casheaLevel').value) || 0.40;
+            let inicialUSD = total * porcentaje;
+            let inicialBs = inicialUSD * configStore.tasa;
+            
+            document.getElementById('casheaInicialMonto').innerText = `$${inicialUSD.toFixed(2)} (Bs ${inicialBs.toFixed(2)})`;
         }
 
         function procesarVenta() {
@@ -916,9 +950,20 @@
             localStorage.setItem('store_products', JSON.stringify(products));
 
             let metodo = document.getElementById('paymentMethod').value;
+            let detalleMetodo = metodo;
+
+            if (metodo === 'Cashea') {
+                let ref = document.getElementById('casheaRef').value.trim();
+                let nivelText = document.getElementById('casheaLevel').options[document.getElementById('casheaLevel').selectedIndex].text;
+                let porcentaje = parseFloat(document.getElementById('casheaLevel').value);
+                let inicial = total * porcentaje;
+                detalleMetodo = `Cashea (${nivelText.split(' ')[0]} ${nivelText.split(' ')[1]} - Inicial: $${inicial.toFixed(2)} / Ref: ${ref || 'N/A'})`;
+            }
+
             let ventaObj = {
                 fecha: new Date().toLocaleString(),
                 metodo: metodo,
+                detalle: detalleMetodo,
                 total: total,
                 items: [...cart]
             };
@@ -929,7 +974,7 @@
             document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
             document.getElementById('printStoreAddress').innerText = configStore.address;
             document.getElementById('invNum').innerText = `Nro: 00000${Math.floor(Math.random() * 90000 + 10000)}`;
-            document.getElementById('invPaymentMethod').innerText = `Método: ${metodo}`;
+            document.getElementById('invPaymentMethod').innerText = `Método: ${detalleMetodo}`;
 
             let bodyHtml = `<table><tr><th>Cant Item</th><th>Total</th></tr>`;
             cart.forEach(i => {
@@ -1044,7 +1089,7 @@
                 tbody.innerHTML = ventasFiltradas.map(v => `
                     <tr>
                         <td>${v.fecha}</td>
-                        <td>${v.metodo}</td>
+                        <td>${v.detalle || v.metodo}</td>
                         <td>$${v.total.toFixed(2)}</td>
                     </tr>
                 `).join('');
