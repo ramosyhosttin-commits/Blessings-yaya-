@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yaya Confecciones - POS e Inventario</title>
     <link rel="icon" type="image/png" href="logo.png">
-    <!-- Librería para exportar Cierre de Caja a Imagen -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -382,20 +381,6 @@
             background-color: #000;
         }
 
-        .btn-save {
-            background: #10b981;
-            color: #fff;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-right: 5px;
-            transition: 0.2s;
-        }
-
-        .btn-save:hover { background: #059669; }
-
         .btn-delete {
             background: #ff2a75;
             color: #fff;
@@ -575,7 +560,7 @@
                 </div>
 
                 <div class="panel-box" style="max-width: 100%;">
-                    <h3>📦 Stock Actual de Productos (Edición Directa en Tabla)</h3>
+                    <h3>📦 Stock Actual de Productos</h3>
                     <table>
                         <thead>
                             <tr>
@@ -647,4 +632,356 @@
                 <p id="printStoreAddress">Barquisimeto, Lara</p>
                 <p>----------------------------------------</p>
                 <p><strong>FACTURA FISCAL</strong></p>
-                <p id="invNum">Nro: 00000125</p
+                <p id="invNum">Nro: 00000125</p>
+            </div>
+            <div id="invBody"></div>
+            <div class="invoice-footer">
+                <p id="invPaymentMethod">Método: Efectivo USD</p>
+                <p>¡Gracias por su compra en Yaya Confecciones!</p>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-print" onclick="window.print()">🖨️ Imprimir Ticket</button>
+                <button class="btn-close" onclick="cerrarModal()">Nueva Venta</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function verificarLogin() {
+            const u = document.getElementById('loginUser').value;
+            const p = document.getElementById('loginPass').value;
+            if (u === 'yaya' && p === '14094923') {
+                document.getElementById('loginOverlay').style.display = 'none';
+            } else {
+                document.getElementById('loginError').style.display = 'block';
+            }
+        }
+
+        let configStore = {
+            name: localStorage.getItem('store_name') || "YAYA CONFECCIONES",
+            rif: localStorage.getItem('store_rif') || "J-12345678-9",
+            address: localStorage.getItem('store_address') || "Barquisimeto, Lara",
+            tasa: parseFloat(localStorage.getItem('store_tasa')) || 36.50
+        };
+
+        let products = JSON.parse(localStorage.getItem('store_products')) || [];
+
+        // Limpieza automática de Sueter Cristal y caracteres raros
+        products = products.filter(p => {
+            let name = String(p.name || '').toUpperCase();
+            let id = String(p.id || '').trim();
+            return !name.includes("SUETER CRISTAL") && !id.includes("'");
+        });
+        localStorage.setItem('store_products', JSON.stringify(products));
+
+        let ventasDia = JSON.parse(localStorage.getItem('store_ventas_dia')) || [];
+        let historialCierres = JSON.parse(localStorage.getItem('store_cierres')) || [];
+        let cart = [];
+
+        document.getElementById('storeName').value = configStore.name;
+        document.getElementById('storeRif').value = configStore.rif;
+        document.getElementById('storeAddress').value = configStore.address;
+        document.getElementById('storeTasa').value = configStore.tasa;
+        document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
+
+        function cambiarVista(vista) {
+            document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active-view'));
+            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+
+            if (vista === 'pos') {
+                document.getElementById('viewPos').classList.add('active-view');
+                document.getElementById('mPos').classList.add('active');
+                initCatalog();
+            } else if (vista === 'inventario') {
+                document.getElementById('viewInventario').classList.add('active-view');
+                document.getElementById('mInv').classList.add('active');
+                renderInventarioTable();
+            } else if (vista === 'caja') {
+                document.getElementById('viewCaja').classList.add('active-view');
+                document.getElementById('mCaja').classList.add('active');
+                renderCajaData();
+            } else if (vista === 'config') {
+                document.getElementById('viewConfig').classList.add('active-view');
+                document.getElementById('mConfig').classList.add('active');
+            }
+        }
+
+        document.getElementById('searchProduct').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const code = this.value.trim();
+                if (!code) return;
+                let prod = products.find(p => String(p.id).toLowerCase() === code.toLowerCase() || String(p.name).toLowerCase() === code.toLowerCase());
+                if (prod) {
+                    addToCart(prod.id);
+                    this.value = '';
+                    initCatalog();
+                } else {
+                    let nuevoNombre = prompt(`El código "${code}" no existe. Ingresa el nombre del producto:`);
+                    if (!nuevoNombre) { this.value = ''; return; }
+                    let nuevoPrecio = parseFloat(prompt("Precio en USD ($):", "10.00")) || 10.00;
+                    let nuevoStock = parseInt(prompt("Cantidad en stock:", "50")) || 50;
+                    let nuevoProd = { id: code, name: nuevoNombre, price: nuevoPrecio, stock: nuevoStock };
+                    products.push(nuevoProd);
+                    localStorage.setItem('store_products', JSON.stringify(products));
+                    cart.push({ ...nuevoProd, qty: 1 });
+                    renderCart();
+                    this.value = '';
+                    initCatalog();
+                }
+            }
+        });
+
+        function initCatalog(lista = products) {
+            const grid = document.getElementById('productGrid');
+            if (lista.length === 0) {
+                grid.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No hay productos en inventario.</p>';
+                return;
+            }
+            grid.innerHTML = lista.map(p => `
+                <div class="product-card" onclick="addToCart('${p.id}')">
+                    <h4>${p.name}</h4>
+                    <p>$${parseFloat(p.price).toFixed(2)}</p>
+                    <span>Stock: ${p.stock}</span>
+                </div>
+            `).join('');
+        }
+
+        function filtrarProductos() {
+            const texto = document.getElementById('searchProduct').value.toLowerCase();
+            const filtrados = products.filter(p => String(p.name).toLowerCase().includes(texto) || String(p.id).toLowerCase().includes(texto));
+            initCatalog(filtrados);
+        }
+
+        function addToCart(id) {
+            const prod = products.find(p => String(p.id) === String(id));
+            if (!prod || prod.stock <= 0) { alert("¡Producto agotado!"); return; }
+            const existing = cart.find(item => String(item.id) === String(id));
+            if (existing) {
+                if (existing.qty >= prod.stock) { alert("Stock máximo alcanzado."); return; }
+                existing.qty++;
+            } else {
+                cart.push({ ...prod, qty: 1 });
+            }
+            renderCart();
+        }
+
+        function updateCartQty(id, newQty) {
+            let qty = parseInt(newQty);
+            const prod = products.find(p => String(p.id) === String(id));
+            const item = cart.find(i => String(i.id) === String(id));
+            if (!item || !prod) return;
+            if (isNaN(qty) || qty <= 0) { removeFromCart(id); return; }
+            item.qty = qty > prod.stock ? prod.stock : qty;
+            renderCart();
+        }
+
+        function removeFromCart(id) {
+            cart = cart.filter(item => String(item.id) !== String(id));
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cartItems');
+            if (cart.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona o escanea productos...</p>';
+                document.getElementById('subTotal').innerText = '$0.00';
+                document.getElementById('totalBs').innerText = 'Bs 0.00';
+                document.getElementById('finalTotal').innerText = '$0.00';
+                return;
+            }
+            let total = 0;
+            container.innerHTML = cart.map(item => {
+                let sub = item.price * item.qty;
+                total += sub;
+                return `
+                    <div class="cart-item">
+                        <div>
+                            <strong>${item.name}</strong><br>
+                            <small>$${parseFloat(item.price).toFixed(2)} x ${item.qty} = $${sub.toFixed(2)}</small>
+                        </div>
+                        <div class="cart-controls">
+                            <button class="qty-btn" onclick="updateCartQty('${item.id}', ${item.qty - 1})">-</button>
+                            <input type="number" class="qty-input" value="${item.qty}" onchange="updateCartQty('${item.id}', this.value)">
+                            <button class="qty-btn" onclick="updateCartQty('${item.id}', ${item.qty + 1})">+</button>
+                            <button class="btn-remove-item" onclick="removeFromCart('${item.id}')">✕</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('subTotal').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('totalBs').innerText = `Bs ${(total * configStore.tasa).toFixed(2)}`;
+            document.getElementById('finalTotal').innerText = `$${total.toFixed(2)}`;
+        }
+
+        function toggleCasheaField() {
+            const method = document.getElementById('paymentMethod').value;
+            document.getElementById('casheaContainer').style.display = method === 'Cashea' ? 'block' : 'none';
+        }
+
+        function procesarVenta() {
+            if (cart.length === 0) { alert("El carrito está vacío."); return; }
+            let total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+            
+            cart.forEach(item => {
+                let p = products.find(prod => String(prod.id) === String(item.id));
+                if (p) p.stock -= item.qty;
+            });
+            localStorage.setItem('store_products', JSON.stringify(products));
+
+            let metodo = document.getElementById('paymentMethod').value;
+            let ventaObj = {
+                fecha: new Date().toLocaleString(),
+                metodo: metodo,
+                total: total,
+                items: [...cart]
+            };
+            ventasDia.push(ventaObj);
+            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
+
+            document.getElementById('printStoreName').innerText = configStore.name;
+            document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
+            document.getElementById('printStoreAddress').innerText = configStore.address;
+            document.getElementById('invNum').innerText = `Nro: 00000${Math.floor(Math.random() * 90000 + 10000)}`;
+            document.getElementById('invPaymentMethod').innerText = `Método: ${metodo}`;
+
+            let bodyHtml = `<table><tr><th>Cant Item</th><th>Total</th></tr>`;
+            cart.forEach(i => {
+                bodyHtml += `<tr><td>${i.qty}x ${i.name}</td><td>$${(i.price * i.qty).toFixed(2)}</td></tr>`;
+            });
+            bodyHtml += `</table><br><strong>TOTAL: $${total.toFixed(2)}</strong><br><strong>TOTAL Bs: ${(total * configStore.tasa).toFixed(2)}</strong>`;
+            document.getElementById('invBody').innerHTML = bodyHtml;
+            document.getElementById('invoiceModal').style.display = 'flex';
+
+            cart = [];
+            renderCart();
+            initCatalog();
+        }
+
+        function cerrarModal() {
+            document.getElementById('invoiceModal').style.display = 'none';
+        }
+
+        function renderInventarioTable() {
+            const tbody = document.getElementById('inventoryTableBody');
+            if (products.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="color:var(--text-muted); text-align:center;">No hay productos registrados.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = products.map(p => `
+                <tr>
+                    <td>${p.id}</td>
+                    <td><input type="text" class="table-input" value="${p.name}" onchange="guardarEdicionDirecta('${p.id}', 'name', this.value)"></td>
+                    <td><input type="number" class="table-input" step="0.01" value="${p.price}" onchange="guardarEdicionDirecta('${p.id}', 'price', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${p.stock}" onchange="guardarEdicionDirecta('${p.id}', 'stock', this.value)"></td>
+                    <td><button class="btn-delete" onclick="eliminarProducto('${p.id}')">🗑️ Borrar</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function guardarEdicionDirecta(id, campo, valor) {
+            let prod = products.find(p => String(p.id) === String(id));
+            if (prod) {
+                if (campo === 'price') prod.price = parseFloat(valor) || 0;
+                else if (campo === 'stock') prod.stock = parseInt(valor) || 0;
+                else prod[campo] = valor;
+                
+                localStorage.setItem('store_products', JSON.stringify(products));
+                initCatalog();
+            }
+        }
+
+        function agregarProducto() {
+            let id = document.getElementById('newProdCode').value.trim();
+            let name = document.getElementById('newProdName').value.trim();
+            let price = parseFloat(document.getElementById('newProdPrice').value);
+            let stock = parseInt(document.getElementById('newProdStock').value);
+            if (!id || !name || isNaN(price) || isNaN(stock)) { alert("Completa todos los campos correctamente."); return; }
+            
+            products.push({ id, name, price, stock });
+            localStorage.setItem('store_products', JSON.stringify(products));
+            
+            document.getElementById('newProdCode').value = '';
+            document.getElementById('newProdName').value = '';
+            document.getElementById('newProdPrice').value = '';
+            document.getElementById('newProdStock').value = '';
+            
+            renderInventarioTable();
+            initCatalog();
+            alert("Producto guardado con éxito.");
+        }
+
+        function eliminarProducto(id) {
+            if (confirm("¿Seguro que deseas eliminar este producto del inventario?")) {
+                products = products.filter(p => String(p.id).trim() !== String(id).trim());
+                localStorage.setItem('store_products', JSON.stringify(products));
+                renderInventarioTable();
+                initCatalog();
+            }
+        }
+
+        function renderCajaData() {
+            document.getElementById('cajaTotalVentas').innerText = ventasDia.length;
+            let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
+            document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
+
+            const tbody = document.getElementById('ventasDiaBody');
+            if (ventasDia.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="color:var(--text-muted); text-align:center;">No hay ventas registradas en este turno.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = ventasDia.map(v => `
+                <tr>
+                    <td>${v.fecha}</td>
+                    <td>${v.metodo}</td>
+                    <td>$${v.total.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function descargarCierreImagen() {
+            const cajaBox = document.getElementById('cajaReporteBox');
+            html2canvas(cajaBox, { scale: 2, backgroundColor: '#1a1a1a' }).then(canvas => {
+                let link = document.createElement('a');
+                link.download = `Cierre_Caja_${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        function realizarCierreCaja() {
+            if (ventasDia.length === 0) { alert("No hay ventas para cerrar."); return; }
+            if (!confirm("¿Estás seguro de ejecutar el cierre de caja? Esto limpiará el turno actual.")) return;
+            
+            let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
+            historialCierres.push({
+                fecha: new Date().toLocaleString(),
+                totalTransacciones: ventasDia.length,
+                montoTotal: montoTotal
+            });
+            localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
+            
+            ventasDia = [];
+            localStorage.removeItem('store_ventas_dia');
+            renderCajaData();
+            alert("¡Cierre de caja ejecutado con éxito!");
+        }
+
+        function guardarConfig() {
+            configStore.name = document.getElementById('storeName').value;
+            configStore.rif = document.getElementById('storeRif').value;
+            configStore.address = document.getElementById('storeAddress').value;
+            configStore.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
+
+            localStorage.setItem('store_name', configStore.name);
+            localStorage.setItem('store_rif', configStore.rif);
+            localStorage.setItem('store_address', configStore.address);
+            localStorage.setItem('store_tasa', configStore.tasa);
+            document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
+            alert("¡Configuración guardada con éxito!");
+        }
+
+        initCatalog();
+    </script>
+</body>
+</html>
