@@ -347,6 +347,34 @@
             margin-bottom: 15px;
         }
 
+        /* Tarjetas de Resumen por Método de Pago */
+        .methods-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .method-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-dark);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .method-card h5 {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .method-card p {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--primary-pink);
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -485,7 +513,7 @@
         <h2>🛍️ Yaya Confecciones</h2>
         <button class="menu-btn active" id="mPos" onclick="cambiarVista('pos')">Punto de Venta</button>
         <button class="menu-btn" id="mInv" onclick="cambiarVista('inventario')">Gestión de Inventario</button>
-        <button class="menu-btn" id="mCaja" onclick="cambiarVista('caja')">Cierre de Caja</button>
+        <button class="menu-btn" id="mCaja" onclick="cambiarVista('caja')">Cierre de Caja (Turnos)</button>
         <button class="menu-btn" id="mConfig" onclick="cambiarVista('config')">Configuración RIF & Tasa</button>
     </div>
 
@@ -581,18 +609,63 @@
         <div class="section-view" id="viewCaja">
             <div style="width: 100%; max-width: 900px;">
                 <div class="panel-box" id="cajaReporteBox" style="max-width: 100%; background-color: var(--card-dark);">
-                    <h3>📊 Resumen del Turno Actual - Yaya Confecciones</h3>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 1rem;">
-                        <span>Total Ventas: <strong id="cajaTotalVentas">0</strong></span>
-                        <span>Monto Acumulado: <strong style="color: var(--primary-pink);" id="cajaMontoTotal">$0.00</strong></span>
+                    <h3>📊 Resumen del Turno Actual</h3>
+                    <p id="lblTurnoNum" style="color: var(--primary-pink); font-weight: 600; margin-bottom: 15px;">Turno Activo #1</p>
+                    
+                    <!-- Tarjetas Desglosadas por Método de Pago -->
+                    <div class="methods-grid">
+                        <div class="method-card">
+                            <h5>💵 Efectivo ($)</h5>
+                            <p id="mEfectivoUSD">$0.00</p>
+                        </div>
+                        <div class="method-card">
+                            <h5>🇻🇪 Efectivo (Bs)</h5>
+                            <p id="mEfectivoBs">$0.00</p>
+                        </div>
+                        <div class="method-card">
+                            <h5>💳 Punto de Venta</h5>
+                            <p id="mPunto">$0.00</p>
+                        </div>
+                        <div class="method-card">
+                            <h5>📲 Pago Móvil</h5>
+                            <p id="mPagoMovil">$0.00</p>
+                        </div>
+                        <div class="method-card">
+                            <h5>🏦 Zelle</h5>
+                            <p id="mZelle">$0.00</p>
+                        </div>
+                        <div class="method-card">
+                            <h5>🛍️ Cashea</h5>
+                            <p id="mCashea">$0.00</p>
+                        </div>
                     </div>
 
-                    <h4 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 8px;">Detalle Venta por Venta:</h4>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-top: 1px solid var(--border-dark); padding-top: 15px;">
+                        <span>Total Ventas Turno: <strong id="cajaTotalVentas">0</strong></span>
+                        <span>Monto Acumulado Total: <strong style="color: var(--primary-pink); font-size: 1.2rem;" id="cajaMontoTotal">$0.00</strong></span>
+                    </div>
+
+                    <!-- Filtro por Método de Pago -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="font-size: 0.95rem; color: var(--text-muted);">Detalle de Ventas del Turno:</h4>
+                        <div style="width: 220px;">
+                            <select id="filterPaymentMethod" onchange="renderCajaData()" style="margin-bottom:0; padding:6px 10px; font-size:0.85rem;">
+                                <option value="TODOS">🔍 Todos los Métodos</option>
+                                <option value="Efectivo USD">Efectivo ($)</option>
+                                <option value="Efectivo Bs">Efectivo (Bs)</option>
+                                <option value="Punto de Venta">Punto de Venta</option>
+                                <option value="Pago Móvil">Pago Móvil</option>
+                                <option value="Zelle">Zelle</option>
+                                <option value="Cashea">Cashea</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <table>
                         <thead>
                             <tr>
                                 <th>Hora / Fecha</th>
-                                <th>Método / Detalles</th>
+                                <th>Método de Pago</th>
                                 <th>Monto Total ($)</th>
                             </tr>
                         </thead>
@@ -600,8 +673,23 @@
                     </table>
                 </div>
 
-                <button class="btn-action" style="margin-top: 10px; background-color: #10b981;" onclick="descargarCierreImagen()">📥 Descargar Cierre como Imagen (PNG)</button>
-                <button class="btn-action" style="margin-top: 10px;" onclick="realizarCierreCaja()">🔒 Ejecutar Cierre de Caja y Reiniciar Turno</button>
+                <button class="btn-action" style="margin-top: 10px; background-color: #10b981;" onclick="descargarCierreImagen()">📥 Descargar Reporte del Turno (PNG)</button>
+                <button class="btn-action" style="margin-top: 10px;" onclick="realizarCierreCaja()">🔒 Cerrar Turno Actual e Iniciar Siguiente Turno</button>
+
+                <div class="panel-box" style="max-width: 100%; margin-top: 30px;">
+                    <h3>📜 Historial de Turnos Anteriores (Cierres Z)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Turno / Cierre</th>
+                                <th>Fecha y Hora</th>
+                                <th>Transacciones</th>
+                                <th>Total Recaudado ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historialCierresBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -666,7 +754,7 @@
 
         let products = JSON.parse(localStorage.getItem('store_products')) || [];
 
-        // Limpieza automática de Sueter Cristal y caracteres raros
+        // Limpieza automática
         products = products.filter(p => {
             let name = String(p.name || '').toUpperCase();
             let id = String(p.id || '').trim();
@@ -674,6 +762,7 @@
         });
         localStorage.setItem('store_products', JSON.stringify(products));
 
+        let currentTurnoNum = parseInt(localStorage.getItem('store_turno_num')) || 1;
         let ventasDia = JSON.parse(localStorage.getItem('store_ventas_dia')) || [];
         let historialCierres = JSON.parse(localStorage.getItem('store_cierres')) || [];
         let cart = [];
@@ -831,157 +920,3 @@
 
             let metodo = document.getElementById('paymentMethod').value;
             let ventaObj = {
-                fecha: new Date().toLocaleString(),
-                metodo: metodo,
-                total: total,
-                items: [...cart]
-            };
-            ventasDia.push(ventaObj);
-            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
-
-            document.getElementById('printStoreName').innerText = configStore.name;
-            document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
-            document.getElementById('printStoreAddress').innerText = configStore.address;
-            document.getElementById('invNum').innerText = `Nro: 00000${Math.floor(Math.random() * 90000 + 10000)}`;
-            document.getElementById('invPaymentMethod').innerText = `Método: ${metodo}`;
-
-            let bodyHtml = `<table><tr><th>Cant Item</th><th>Total</th></tr>`;
-            cart.forEach(i => {
-                bodyHtml += `<tr><td>${i.qty}x ${i.name}</td><td>$${(i.price * i.qty).toFixed(2)}</td></tr>`;
-            });
-            bodyHtml += `</table><br><strong>TOTAL: $${total.toFixed(2)}</strong><br><strong>TOTAL Bs: ${(total * configStore.tasa).toFixed(2)}</strong>`;
-            document.getElementById('invBody').innerHTML = bodyHtml;
-            document.getElementById('invoiceModal').style.display = 'flex';
-
-            cart = [];
-            renderCart();
-            initCatalog();
-        }
-
-        function cerrarModal() {
-            document.getElementById('invoiceModal').style.display = 'none';
-        }
-
-        function renderInventarioTable() {
-            const tbody = document.getElementById('inventoryTableBody');
-            if (products.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="color:var(--text-muted); text-align:center;">No hay productos registrados.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = products.map(p => `
-                <tr>
-                    <td>${p.id}</td>
-                    <td><input type="text" class="table-input" value="${p.name}" onchange="guardarEdicionDirecta('${p.id}', 'name', this.value)"></td>
-                    <td><input type="number" class="table-input" step="0.01" value="${p.price}" onchange="guardarEdicionDirecta('${p.id}', 'price', this.value)"></td>
-                    <td><input type="number" class="table-input" value="${p.stock}" onchange="guardarEdicionDirecta('${p.id}', 'stock', this.value)"></td>
-                    <td><button class="btn-delete" onclick="eliminarProducto('${p.id}')">🗑️ Borrar</button></td>
-                </tr>
-            `).join('');
-        }
-
-        function guardarEdicionDirecta(id, campo, valor) {
-            let prod = products.find(p => String(p.id) === String(id));
-            if (prod) {
-                if (campo === 'price') prod.price = parseFloat(valor) || 0;
-                else if (campo === 'stock') prod.stock = parseInt(valor) || 0;
-                else prod[campo] = valor;
-                
-                localStorage.setItem('store_products', JSON.stringify(products));
-                initCatalog();
-            }
-        }
-
-        function agregarProducto() {
-            let id = document.getElementById('newProdCode').value.trim();
-            let name = document.getElementById('newProdName').value.trim();
-            let price = parseFloat(document.getElementById('newProdPrice').value);
-            let stock = parseInt(document.getElementById('newProdStock').value);
-            if (!id || !name || isNaN(price) || isNaN(stock)) { alert("Completa todos los campos correctamente."); return; }
-            
-            products.push({ id, name, price, stock });
-            localStorage.setItem('store_products', JSON.stringify(products));
-            
-            document.getElementById('newProdCode').value = '';
-            document.getElementById('newProdName').value = '';
-            document.getElementById('newProdPrice').value = '';
-            document.getElementById('newProdStock').value = '';
-            
-            renderInventarioTable();
-            initCatalog();
-            alert("Producto guardado con éxito.");
-        }
-
-        function eliminarProducto(id) {
-            if (confirm("¿Seguro que deseas eliminar este producto del inventario?")) {
-                products = products.filter(p => String(p.id).trim() !== String(id).trim());
-                localStorage.setItem('store_products', JSON.stringify(products));
-                renderInventarioTable();
-                initCatalog();
-            }
-        }
-
-        function renderCajaData() {
-            document.getElementById('cajaTotalVentas').innerText = ventasDia.length;
-            let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
-            document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
-
-            const tbody = document.getElementById('ventasDiaBody');
-            if (ventasDia.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="color:var(--text-muted); text-align:center;">No hay ventas registradas en este turno.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = ventasDia.map(v => `
-                <tr>
-                    <td>${v.fecha}</td>
-                    <td>${v.metodo}</td>
-                    <td>$${v.total.toFixed(2)}</td>
-                </tr>
-            `).join('');
-        }
-
-        function descargarCierreImagen() {
-            const cajaBox = document.getElementById('cajaReporteBox');
-            html2canvas(cajaBox, { scale: 2, backgroundColor: '#1a1a1a' }).then(canvas => {
-                let link = document.createElement('a');
-                link.download = `Cierre_Caja_${new Date().toISOString().slice(0,10)}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-            });
-        }
-
-        function realizarCierreCaja() {
-            if (ventasDia.length === 0) { alert("No hay ventas para cerrar."); return; }
-            if (!confirm("¿Estás seguro de ejecutar el cierre de caja? Esto limpiará el turno actual.")) return;
-            
-            let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
-            historialCierres.push({
-                fecha: new Date().toLocaleString(),
-                totalTransacciones: ventasDia.length,
-                montoTotal: montoTotal
-            });
-            localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
-            
-            ventasDia = [];
-            localStorage.removeItem('store_ventas_dia');
-            renderCajaData();
-            alert("¡Cierre de caja ejecutado con éxito!");
-        }
-
-        function guardarConfig() {
-            configStore.name = document.getElementById('storeName').value;
-            configStore.rif = document.getElementById('storeRif').value;
-            configStore.address = document.getElementById('storeAddress').value;
-            configStore.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
-
-            localStorage.setItem('store_name', configStore.name);
-            localStorage.setItem('store_rif', configStore.rif);
-            localStorage.setItem('store_address', configStore.address);
-            localStorage.setItem('store_tasa', configStore.tasa);
-            document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
-            alert("¡Configuración guardada con éxito!");
-        }
-
-        initCatalog();
-    </script>
-</body>
-</html>
