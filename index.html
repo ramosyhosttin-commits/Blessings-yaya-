@@ -209,7 +209,7 @@
             flex: 1;
             overflow-y: auto;
             margin-bottom: 15px;
-            max-height: 180px;
+            max-height: 200px;
         }
 
         .cart-item {
@@ -219,6 +219,23 @@
             padding: 8px 0;
             border-bottom: 1px solid var(--border-dark);
             font-size: 0.9rem;
+        }
+
+        .btn-remove-item {
+            background: rgba(255, 42, 117, 0.2);
+            color: #ff2a75;
+            border: none;
+            padding: 2px 7px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 8px;
+            transition: 0.2s;
+        }
+
+        .btn-remove-item:hover {
+            background: #ff2a75;
+            color: #fff;
         }
 
         .payment-methods {
@@ -314,6 +331,25 @@
         th {
             color: var(--text-muted);
             font-size: 0.8rem;
+        }
+
+        .btn-edit {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+
+        .btn-delete {
+            background: #ff2a75;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
         }
 
         /* Modal Factura Fiscal */
@@ -743,6 +779,11 @@
             renderCart();
         }
 
+        function removeFromCart(id) {
+            cart = cart.filter(item => item.id.toString() !== id.toString());
+            renderCart();
+        }
+
         function renderCart() {
             const container = document.getElementById('cartItems');
             if (cart.length === 0) {
@@ -760,7 +801,10 @@
                 return `
                     <div class="cart-item">
                         <span>${item.name} (x${item.qty})</span>
-                        <span>$${sub.toFixed(2)}</span>
+                        <div>
+                            <span>$${sub.toFixed(2)}</span>
+                            <button class="btn-remove-item" onclick="removeFromCart('${item.id}')" title="Eliminar del carrito">✖</button>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -835,53 +879,39 @@
             let totalBs = total * configStore.tasa;
             bodyHTML += `
                 <p>----------------------------------------</p>
-                <div style="display:flex; justify-content:space-between;"><span>TOTAL USD:</span><span>$${total.toFixed(2)}</span></div>
-            `;
-
-            if (method === 'Cashea') {
-                let inicial = total * porcentajeInicial;
-                let restante = total - inicial;
-                let porcText = (porcentajeInicial * 100) + "%";
-                bodyHTML += `
-                    <div style="display:flex; justify-content:space-between; color:#ff2a75;"><span>INICIAL CASHEA (${porcText}):</span><span>$${inicial.toFixed(2)}</span></div>
-                    <div style="display:flex; justify-content:space-between; color:#ff2a75;"><span>RESTO FINANCIADO:</span><span>$${restante.toFixed(2)}</span></div>
-                `;
-            }
-
-            bodyHTML += `
-                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:0.9rem; margin-top:5px;"><span>TOTAL Bs (Tasa ${configStore.tasa}):</span><span>Bs ${totalBs.toFixed(2)}</span></div>
+                <div style="display:flex; justify-content:space-between;"><strong>Subtotal:</strong> <span>$${total.toFixed(2)}</span></div>
+                <div style="display:flex; justify-content:space-between;"><strong>Total Bs (Tasa ${configStore.tasa}):</strong> <span>Bs ${totalBs.toFixed(2)}</span></div>
+                <div style="display:flex; justify-content:space-between; font-size: 1rem; margin-top: 5px;"><strong>TOTAL USD:</strong> <strong>$${total.toFixed(2)}</strong></div>
             `;
 
             document.getElementById('invBody').innerHTML = bodyHTML;
             document.getElementById('invPaymentMethod').innerText = paymentDetails;
             document.getElementById('invoiceModal').style.display = 'flex';
+
+            cart = [];
+            renderCart();
+            initCatalog();
         }
 
         function cerrarModal() {
             document.getElementById('invoiceModal').style.display = 'none';
-            cart = [];
-            document.getElementById('casheaRef').value = '';
-            document.getElementById('paymentMethod').value = 'Efectivo USD';
-            toggleCasheaField();
-            renderCart();
-            initCatalog();
             document.getElementById('searchProduct').focus();
         }
 
-        // --- GESTIÓN DE INVENTARIO ---
+        // --- MÓDULO INVENTARIO ---
         function agregarProducto() {
-            const code = document.getElementById('newProdCode').value.trim() || ("PRD-" + Math.floor(1000 + Math.random() * 9000));
+            const code = document.getElementById('newProdCode').value.trim();
             const name = document.getElementById('newProdName').value.trim();
             const price = parseFloat(document.getElementById('newProdPrice').value);
             const stock = parseInt(document.getElementById('newProdStock').value);
 
-            if (!name || isNaN(price) || isNaN(stock)) {
-                alert("Por favor completa el nombre, precio y stock correctamente.");
+            if (!code || !name || isNaN(price) || isNaN(stock)) {
+                alert("Por favor completa todos los campos correctamente.");
                 return;
             }
 
-            // Validar si el código ya existe
-            if (products.some(p => p.id.toString().toLowerCase() === code.toLowerCase())) {
+            let existing = products.find(p => p.id.toString().toLowerCase() === code.toLowerCase());
+            if (existing) {
                 alert("Ya existe un producto con este código de barras.");
                 return;
             }
@@ -893,9 +923,59 @@
             document.getElementById('newProdName').value = '';
             document.getElementById('newProdPrice').value = '';
             document.getElementById('newProdStock').value = '';
-            alert("¡Producto agregado con éxito al inventario!");
+
+            alert("¡Producto guardado en el inventario con éxito!");
             renderInventarioTable();
-            document.getElementById('newProdCode').focus();
+        }
+
+        function renderInventarioTable() {
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = products.map(p => `
+                <tr>
+                    <td>${p.id}</td>
+                    <td>${p.name}</td>
+                    <td>$${p.price.toFixed(2)}</td>
+                    <td>${p.stock}</td>
+                    <td>
+                        <button class="btn-edit" onclick="editarProducto('${p.id}')">✏️ Editar</button>
+                        <button class="btn-delete" onclick="eliminarProducto('${p.id}')">Eliminar</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function editarProducto(id) {
+            let p = products.find(prod => prod.id.toString() === id.toString());
+            if (!p) return;
+
+            let nuevoCodigo = prompt("Editar Código de Barras:", p.id);
+            if (nuevoCodigo === null) return;
+            nuevoCodigo = nuevoCodigo.trim();
+
+            let nuevoNombre = prompt("Editar Nombre del Producto:", p.name);
+            if (nuevoNombre === null) return;
+            nuevoNombre = nuevoNombre.trim();
+
+            let nuevoPrecio = prompt("Editar Precio ($):", p.price);
+            if (nuevoPrecio === null) return;
+
+            let nuevoStock = prompt("Editar Cantidad en Stock:", p.stock);
+            if (nuevoStock === null) return;
+
+            if (!nuevoCodigo || !nuevoNombre || isNaN(parseFloat(nuevoPrecio)) || isNaN(parseInt(nuevoStock))) {
+                alert("Error: Datos inválidos. No se guardaron los cambios.");
+                return;
+            }
+
+            p.id = nuevoCodigo;
+            p.name = nuevoNombre;
+            p.price = parseFloat(nuevoPrecio);
+            p.stock = parseInt(nuevoStock);
+
+            localStorage.setItem('store_products', JSON.stringify(products));
+            renderInventarioTable();
+            initCatalog();
+            alert("¡Producto actualizado exitosamente!");
         }
 
         function eliminarProducto(id) {
@@ -903,53 +983,32 @@
                 products = products.filter(p => p.id.toString() !== id.toString());
                 localStorage.setItem('store_products', JSON.stringify(products));
                 renderInventarioTable();
+                initCatalog();
             }
         }
 
-        function renderInventarioTable() {
-            const tbody = document.getElementById('inventoryTableBody');
-            if (products.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No hay productos registrados.</td></tr>';
-                return;
-            }
-            tbody.innerHTML = products.map(p => `
-                <tr>
-                    <td>${p.id}</td>
-                    <td>${p.name}</td>
-                    <td>$${p.price.toFixed(2)}</td>
-                    <td>${p.stock}</td>
-                    <td><button onclick="eliminarProducto('${p.id}')" style="background: #333; color: #ff2a75; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">Eliminar</button></td>
-                </tr>
-            `).join('');
-        }
-
-        // --- CIERRE DE CAJA ---
+        // --- MÓDULO CAJA ---
         function renderCajaData() {
-            const tbody = document.getElementById('ventasDiaBody');
-            let totalMonto = 0;
+            document.getElementById('cajaTotalVentas').innerText = ventasDia.length;
+            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
+            document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
 
+            const tbody = document.getElementById('ventasDiaBody');
             if (ventasDia.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: var(--text-muted);">No hay ventas registradas en este turno.</td></tr>';
-                document.getElementById('cajaTotalVentas').innerText = '0';
-                document.getElementById('cajaMontoTotal').innerText = '$0.00';
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay ventas registradas en este turno.</td></tr>';
             } else {
-                tbody.innerHTML = ventasDia.map(v => {
-                    totalMonto += v.total;
-                    return `
-                        <tr>
-                            <td>${v.fecha}</td>
-                            <td>${v.metodo}</td>
-                            <td>$${v.total.toFixed(2)}</td>
-                        </tr>
-                    `;
-                }).join('');
-                document.getElementById('cajaTotalVentas').innerText = ventasDia.length;
-                document.getElementById('cajaMontoTotal').innerText = `$${totalMonto.toFixed(2)}`;
+                tbody.innerHTML = ventasDia.map(v => `
+                    <tr>
+                        <td>${v.fecha}</td>
+                        <td>${v.metodo}</td>
+                        <td>$${v.total.toFixed(2)}</td>
+                    </tr>
+                `).join('');
             }
 
             const histBody = document.getElementById('historialCierresBody');
             if (historialCierres.length === 0) {
-                histBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: var(--text-muted);">No hay cierres anteriores guardados.</td></tr>';
+                histBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay cierres anteriores guardados.</td></tr>';
             } else {
                 histBody.innerHTML = historialCierres.map(c => `
                     <tr>
@@ -963,31 +1022,30 @@
 
         function realizarCierreCaja() {
             if (ventasDia.length === 0) {
-                alert("No hay ventas en el turno actual para cerrar.");
+                alert("No hay ventas en este turno para cerrar.");
                 return;
             }
-            if (confirm("¿Estás seguro de realizar el Cierre de Caja (Z)? Se archivarán las ventas del turno.")) {
-                let montoTotalTurno = ventasDia.reduce((sum, v) => sum + v.total, 0);
-                historialCierres.push({
-                    fecha: new Date().toLocaleString(),
-                    totalTransacciones: ventasDia.length,
-                    montoTotal: montoTotalTurno
-                });
-                localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
+            if (!confirm("¿Estás seguro de realizar el Cierre de Caja (Z)? Esto vaciará el turno actual.")) return;
 
-                ventasDia = [];
-                localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
+            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
+            historialCierres.push({
+                fecha: new Date().toLocaleString(),
+                totalTransacciones: ventasDia.length,
+                montoTotal: montoTotal
+            });
+            localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
 
-                alert("¡Cierre de caja ejecutado con éxito!");
-                renderCajaData();
-            }
+            ventasDia = [];
+            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
+            renderCajaData();
+            alert("¡Cierre de caja ejecutado con éxito!");
         }
 
         // --- CONFIGURACIÓN ---
         function guardarConfig() {
-            configStore.name = document.getElementById('storeName').value || "INVERSIONES BLESSINGS, C.A.";
-            configStore.rif = document.getElementById('storeRif').value || "J-40123456-8";
-            configStore.address = document.getElementById('storeAddress').value || "Av. Principal, Local Comercial";
+            configStore.name = document.getElementById('storeName').value.trim() || "INVERSIONES BLESSINGS, C.A.";
+            configStore.rif = document.getElementById('storeRif').value.trim() || "J-40123456-8";
+            configStore.address = document.getElementById('storeAddress').value.trim() || "Av. Principal";
             configStore.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
 
             localStorage.setItem('store_name', configStore.name);
@@ -996,12 +1054,11 @@
             localStorage.setItem('store_tasa', configStore.tasa);
 
             document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
-            alert("¡Configuración guardada correctamente!");
-            cambiarVista('pos');
+            alert("¡Configuración guardada con éxito!");
         }
 
+        // Inicializar catálogo al arrancar
         initCatalog();
-        document.getElementById('searchProduct').focus();
     </script>
 </body>
 </html>
