@@ -333,23 +333,52 @@
             font-size: 0.8rem;
         }
 
-        .btn-edit {
-            background: #2563eb;
+        /* Inputs estilizados dentro de la Tabla para edición directa */
+        .table-input {
+            width: 100%;
+            padding: 6px 8px;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-dark);
+            color: var(--text-main);
+            border-radius: 6px;
+            margin: 0;
+            font-size: 0.88rem;
+        }
+
+        .table-input:focus {
+            border-color: var(--primary-pink);
+            background-color: #000;
+        }
+
+        .btn-save {
+            background: #10b981;
             color: #fff;
             border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
+            padding: 6px 12px;
+            border-radius: 6px;
             cursor: pointer;
+            font-weight: 600;
             margin-right: 5px;
+            transition: 0.2s;
+        }
+
+        .btn-save:hover {
+            background: #059669;
         }
 
         .btn-delete {
             background: #ff2a75;
             color: #fff;
             border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
+            padding: 6px 12px;
+            border-radius: 6px;
             cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .btn-delete:hover {
+            background: var(--primary-pink-hover);
         }
 
         /* Modal Factura Fiscal */
@@ -517,8 +546,8 @@
 
         <!-- 2. VISTA INVENTARIO -->
         <div class="section-view" id="viewInventario">
-            <div style="width: 100%; max-width: 900px;">
-                <div class="panel-box">
+            <div style="width: 100%; max-width: 950px;">
+                <div class="panel-box" style="max-width: 100%;">
                     <h3>➕ Agregar Nuevo Producto (Soporta Scanner)</h3>
                     <div style="display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 10px;">
                         <input type="text" id="newProdCode" placeholder="Escanea código de barras">
@@ -530,15 +559,15 @@
                 </div>
 
                 <div class="panel-box" style="max-width: 100%;">
-                    <h3>📦 Stock Actual de Productos</h3>
+                    <h3>📦 Stock Actual de Productos (Edición Directa en Tabla)</h3>
                     <table>
                         <thead>
                             <tr>
-                                <th>Código / ID</th>
-                                <th>Nombre</th>
-                                <th>Precio ($)</th>
-                                <th>Stock Disponible</th>
-                                <th>Acción</th>
+                                <th style="width: 20%;">Código / ID</th>
+                                <th style="width: 35%;">Nombre</th>
+                                <th style="width: 15%;">Precio ($)</th>
+                                <th style="width: 15%;">Stock</th>
+                                <th style="width: 15%;">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="inventoryTableBody"></tbody>
@@ -681,384 +710,3 @@
                 document.getElementById('viewPos').classList.add('active-view');
                 document.getElementById('mPos').classList.add('active');
                 document.getElementById('searchProduct').value = '';
-                initCatalog();
-                document.getElementById('searchProduct').focus();
-            } else if (vista === 'inventario') {
-                document.getElementById('viewInventario').classList.add('active-view');
-                document.getElementById('mInv').classList.add('active');
-                renderInventarioTable();
-                document.getElementById('newProdCode').focus();
-            } else if (vista === 'caja') {
-                document.getElementById('viewCaja').classList.add('active-view');
-                document.getElementById('mCaja').classList.add('active');
-                renderCajaData();
-            } else if (vista === 'config') {
-                document.getElementById('viewConfig').classList.add('active-view');
-                document.getElementById('mConfig').classList.add('active');
-            }
-        }
-
-        // --- SOPORTE PARA SCANNER EN POS ---
-        document.getElementById('searchProduct').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const code = this.value.trim();
-                if (!code) return;
-
-                let prod = products.find(p => p.id.toString().toLowerCase() === code.toLowerCase() || p.name.toLowerCase() === code.toLowerCase());
-                
-                if (prod) {
-                    addToCart(prod.id);
-                    this.value = '';
-                    initCatalog();
-                } else {
-                    let nuevoNombre = prompt(`El código "${code}" no existe. Ingresa el nombre del producto:`);
-                    if (!nuevoNombre) {
-                        this.value = '';
-                        return;
-                    }
-                    let nuevoPrecio = parseFloat(prompt("Ingresa el precio en USD ($):", "10.00"));
-                    if (isNaN(nuevoPrecio)) nuevoPrecio = 10.00;
-
-                    let nuevoStock = parseInt(prompt("Ingresa la cantidad inicial en stock:", "50"));
-                    if (isNaN(nuevoStock)) nuevoStock = 50;
-
-                    let nuevoProd = { id: code, name: nuevoNombre, price: nuevoPrecio, stock: nuevoStock };
-                    products.push(nuevoProd);
-                    localStorage.setItem('store_products', JSON.stringify(products));
-
-                    cart.push({ ...nuevoProd, qty: 1 });
-                    renderCart();
-                    
-                    this.value = '';
-                    initCatalog();
-                    alert(`¡Producto "${nuevoNombre}" creado y agregado a la venta con éxito!`);
-                }
-            }
-        });
-
-        // --- MÓDULO POS ---
-        function initCatalog(lista = products) {
-            const grid = document.getElementById('productGrid');
-            if (lista.length === 0) {
-                grid.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No se encontraron productos.</p>';
-                return;
-            }
-            grid.innerHTML = lista.map(p => `
-                <div class="product-card" onclick="addToCart('${p.id}')">
-                    <h4>${p.name}</h4>
-                    <p>$${p.price.toFixed(2)}</p>
-                    <span>Stock: ${p.stock}</span>
-                </div>
-            `).join('');
-        }
-
-        function filtrarProductos() {
-            const texto = document.getElementById('searchProduct').value.toLowerCase();
-            const filtrados = products.filter(p => p.name.toLowerCase().includes(texto) || p.id.toString().toLowerCase().includes(texto));
-            initCatalog(filtrados);
-        }
-
-        function addToCart(id) {
-            const prod = products.find(p => p.id.toString() === id.toString());
-            if (!prod) return;
-            if (prod.stock <= 0) {
-                alert("¡Producto agotado!");
-                return;
-            }
-            const existing = cart.find(item => item.id.toString() === id.toString());
-            if (existing) {
-                if (existing.qty >= prod.stock) {
-                    alert("No hay más stock disponible de este producto.");
-                    return;
-                }
-                existing.qty++;
-            } else {
-                cart.push({ ...prod, qty: 1 });
-            }
-            renderCart();
-        }
-
-        function removeFromCart(id) {
-            cart = cart.filter(item => item.id.toString() !== id.toString());
-            renderCart();
-        }
-
-        function renderCart() {
-            const container = document.getElementById('cartItems');
-            if (cart.length === 0) {
-                container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona o escanea productos...</p>';
-                document.getElementById('subTotal').innerText = '$0.00';
-                document.getElementById('totalBs').innerText = 'Bs 0.00';
-                document.getElementById('finalTotal').innerText = '$0.00';
-                return;
-            }
-
-            let total = 0;
-            container.innerHTML = cart.map(item => {
-                let sub = item.price * item.qty;
-                total += sub;
-                return `
-                    <div class="cart-item">
-                        <span>${item.name} (x${item.qty})</span>
-                        <div>
-                            <span>$${sub.toFixed(2)}</span>
-                            <button class="btn-remove-item" onclick="removeFromCart('${item.id}')" title="Eliminar del carrito">✖</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            let totalBs = total * configStore.tasa;
-            document.getElementById('subTotal').innerText = `$${total.toFixed(2)}`;
-            document.getElementById('totalBs').innerText = `Bs ${totalBs.toFixed(2)}`;
-            document.getElementById('finalTotal').innerText = `$${total.toFixed(2)}`;
-        }
-
-        function toggleCasheaField() {
-            const method = document.getElementById('paymentMethod').value;
-            document.getElementById('casheaContainer').style.display = method === 'Cashea' ? 'block' : 'none';
-        }
-
-        function procesarVenta() {
-            if (cart.length === 0) {
-                alert("El carrito está vacío.");
-                return;
-            }
-
-            let total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-            const method = document.getElementById('paymentMethod').value;
-            let paymentDetails = `Método: ${method}`;
-
-            let porcentajeInicial = 0.40;
-            if (method === 'Cashea') {
-                if (total < 25) {
-                    alert("Error: El monto mínimo para compras con Cashea es de $25.00 USD.");
-                    return;
-                }
-                const ref = document.getElementById('casheaRef').value;
-                if (!ref) {
-                    alert("Por favor ingresa la referencia o cédula de Cashea.");
-                    return;
-                }
-                
-                porcentajeInicial = parseFloat(document.getElementById('casheaLevel').value);
-                let nivelTexto = document.getElementById('casheaLevel').selectedOptions[0].text;
-
-                let inicial = total * porcentajeInicial;
-                let financiado = total - inicial;
-                paymentDetails += ` (${nivelTexto}) (Ref: ${ref}) - Inicial: $${inicial.toFixed(2)} | Financiado: $${financiado.toFixed(2)}`;
-            }
-
-            cart.forEach(item => {
-                let p = products.find(prod => prod.id.toString() === item.id.toString());
-                if (p) p.stock -= item.qty;
-            });
-            localStorage.setItem('store_products', JSON.stringify(products));
-
-            ventasDia.push({
-                fecha: new Date().toLocaleString(),
-                total: total,
-                metodo: paymentDetails
-            });
-            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
-
-            document.getElementById('printStoreName').innerText = configStore.name;
-            document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
-            document.getElementById('printStoreAddress').innerText = configStore.address;
-
-            let bodyHTML = `
-                <p>Fecha: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
-                <p>----------------------------------------</p>
-            `;
-
-            cart.forEach(item => {
-                bodyHTML += `<div style="display:flex; justify-content:space-between;"><span>${item.qty}x ${item.name}</span><span>$${(item.price * item.qty).toFixed(2)}</span></div>`;
-            });
-
-            let totalBs = total * configStore.tasa;
-            bodyHTML += `
-                <p>----------------------------------------</p>
-                <div style="display:flex; justify-content:space-between;"><strong>Subtotal:</strong> <span>$${total.toFixed(2)}</span></div>
-                <div style="display:flex; justify-content:space-between;"><strong>Total Bs (Tasa ${configStore.tasa}):</strong> <span>Bs ${totalBs.toFixed(2)}</span></div>
-                <div style="display:flex; justify-content:space-between; font-size: 1rem; margin-top: 5px;"><strong>TOTAL USD:</strong> <strong>$${total.toFixed(2)}</strong></div>
-            `;
-
-            document.getElementById('invBody').innerHTML = bodyHTML;
-            document.getElementById('invPaymentMethod').innerText = paymentDetails;
-            document.getElementById('invoiceModal').style.display = 'flex';
-
-            cart = [];
-            renderCart();
-            initCatalog();
-        }
-
-        function cerrarModal() {
-            document.getElementById('invoiceModal').style.display = 'none';
-            document.getElementById('searchProduct').focus();
-        }
-
-        // --- MÓDULO INVENTARIO ---
-        function agregarProducto() {
-            const code = document.getElementById('newProdCode').value.trim();
-            const name = document.getElementById('newProdName').value.trim();
-            const price = parseFloat(document.getElementById('newProdPrice').value);
-            const stock = parseInt(document.getElementById('newProdStock').value);
-
-            if (!code || !name || isNaN(price) || isNaN(stock)) {
-                alert("Por favor completa todos los campos correctamente.");
-                return;
-            }
-
-            let existing = products.find(p => p.id.toString().toLowerCase() === code.toLowerCase());
-            if (existing) {
-                alert("Ya existe un producto con este código de barras.");
-                return;
-            }
-
-            products.push({ id: code, name, price, stock });
-            localStorage.setItem('store_products', JSON.stringify(products));
-
-            document.getElementById('newProdCode').value = '';
-            document.getElementById('newProdName').value = '';
-            document.getElementById('newProdPrice').value = '';
-            document.getElementById('newProdStock').value = '';
-
-            alert("¡Producto guardado en el inventario con éxito!");
-            renderInventarioTable();
-        }
-
-        function renderInventarioTable() {
-            const tbody = document.getElementById('inventoryTableBody');
-            tbody.innerHTML = products.map(p => `
-                <tr>
-                    <td>${p.id}</td>
-                    <td>${p.name}</td>
-                    <td>$${p.price.toFixed(2)}</td>
-                    <td>${p.stock}</td>
-                    <td>
-                        <button class="btn-edit" onclick="editarProducto('${p.id}')">✏️ Editar</button>
-                        <button class="btn-delete" onclick="eliminarProducto('${p.id}')">Eliminar</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function editarProducto(id) {
-            let p = products.find(prod => prod.id.toString() === id.toString());
-            if (!p) return;
-
-            let nuevoCodigo = prompt("Editar Código de Barras:", p.id);
-            if (nuevoCodigo === null) return;
-            nuevoCodigo = nuevoCodigo.trim();
-
-            let nuevoNombre = prompt("Editar Nombre del Producto:", p.name);
-            if (nuevoNombre === null) return;
-            nuevoNombre = nuevoNombre.trim();
-
-            let nuevoPrecio = prompt("Editar Precio ($):", p.price);
-            if (nuevoPrecio === null) return;
-
-            let nuevoStock = prompt("Editar Cantidad en Stock:", p.stock);
-            if (nuevoStock === null) return;
-
-            if (!nuevoCodigo || !nuevoNombre || isNaN(parseFloat(nuevoPrecio)) || isNaN(parseInt(nuevoStock))) {
-                alert("Error: Datos inválidos. No se guardaron los cambios.");
-                return;
-            }
-
-            p.id = nuevoCodigo;
-            p.name = nuevoNombre;
-            p.price = parseFloat(nuevoPrecio);
-            p.stock = parseInt(nuevoStock);
-
-            localStorage.setItem('store_products', JSON.stringify(products));
-            renderInventarioTable();
-            initCatalog();
-            alert("¡Producto actualizado exitosamente!");
-        }
-
-        function eliminarProducto(id) {
-            if (confirm("¿Seguro que deseas eliminar este producto?")) {
-                products = products.filter(p => p.id.toString() !== id.toString());
-                localStorage.setItem('store_products', JSON.stringify(products));
-                renderInventarioTable();
-                initCatalog();
-            }
-        }
-
-        // --- MÓDULO CAJA ---
-        function renderCajaData() {
-            document.getElementById('cajaTotalVentas').innerText = ventasDia.length;
-            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
-            document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
-
-            const tbody = document.getElementById('ventasDiaBody');
-            if (ventasDia.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay ventas registradas en este turno.</td></tr>';
-            } else {
-                tbody.innerHTML = ventasDia.map(v => `
-                    <tr>
-                        <td>${v.fecha}</td>
-                        <td>${v.metodo}</td>
-                        <td>$${v.total.toFixed(2)}</td>
-                    </tr>
-                `).join('');
-            }
-
-            const histBody = document.getElementById('historialCierresBody');
-            if (historialCierres.length === 0) {
-                histBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay cierres anteriores guardados.</td></tr>';
-            } else {
-                histBody.innerHTML = historialCierres.map(c => `
-                    <tr>
-                        <td>${c.fecha}</td>
-                        <td>${c.totalTransacciones}</td>
-                        <td>$${c.montoTotal.toFixed(2)}</td>
-                    </tr>
-                `).join('');
-            }
-        }
-
-        function realizarCierreCaja() {
-            if (ventasDia.length === 0) {
-                alert("No hay ventas en este turno para cerrar.");
-                return;
-            }
-            if (!confirm("¿Estás seguro de realizar el Cierre de Caja (Z)? Esto vaciará el turno actual.")) return;
-
-            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
-            historialCierres.push({
-                fecha: new Date().toLocaleString(),
-                totalTransacciones: ventasDia.length,
-                montoTotal: montoTotal
-            });
-            localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
-
-            ventasDia = [];
-            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
-            renderCajaData();
-            alert("¡Cierre de caja ejecutado con éxito!");
-        }
-
-        // --- CONFIGURACIÓN ---
-        function guardarConfig() {
-            configStore.name = document.getElementById('storeName').value.trim() || "INVERSIONES BLESSINGS, C.A.";
-            configStore.rif = document.getElementById('storeRif').value.trim() || "J-40123456-8";
-            configStore.address = document.getElementById('storeAddress').value.trim() || "Av. Principal";
-            configStore.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
-
-            localStorage.setItem('store_name', configStore.name);
-            localStorage.setItem('store_rif', configStore.rif);
-            localStorage.setItem('store_address', configStore.address);
-            localStorage.setItem('store_tasa', configStore.tasa);
-
-            document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
-            alert("¡Configuración guardada con éxito!");
-        }
-
-        // Inicializar catálogo al arrancar
-        initCatalog();
-    </script>
-</body>
-</html>
