@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blessings - Sistema POS e Inventario</title>
+    <title>Yaya Confecciones - POS e Inventario</title>
     <link rel="icon" type="image/png" href="logo.png">
+    <!-- Librería para exportar Cierre de Caja a Imagen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
@@ -71,7 +73,7 @@
         }
 
         .sidebar h2 {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             margin-bottom: 30px;
             color: var(--primary-pink);
         }
@@ -204,7 +206,7 @@
             color: var(--text-muted);
         }
 
-        /* Carrito de Compras con Control de Cantidad */
+        /* Carrito */
         .cart-items {
             flex: 1;
             overflow-y: auto;
@@ -392,9 +394,7 @@
             transition: 0.2s;
         }
 
-        .btn-save:hover {
-            background: #059669;
-        }
+        .btn-save:hover { background: #059669; }
 
         .btn-delete {
             background: #ff2a75;
@@ -407,9 +407,7 @@
             transition: 0.2s;
         }
 
-        .btn-delete:hover {
-            background: var(--primary-pink-hover);
-        }
+        .btn-delete:hover { background: var(--primary-pink-hover); }
 
         /* Modal Factura Fiscal */
         .modal {
@@ -490,7 +488,7 @@
     <!-- PANTALLA DE LOGIN -->
     <div id="loginOverlay">
         <div class="login-box">
-            <h2>🛍️ Blessings POS Login</h2>
+            <h2>🛍️ Yaya Confecciones Login</h2>
             <input type="text" id="loginUser" placeholder="Usuario" style="margin-bottom: 10px;">
             <input type="password" id="loginPass" placeholder="Contraseña" style="margin-bottom: 15px;">
             <button class="btn-action" onclick="verificarLogin()">Entrar al Sistema</button>
@@ -499,7 +497,7 @@
     </div>
 
     <div class="sidebar">
-        <h2>🛍️ Blessings POS</h2>
+        <h2>🛍️ Yaya Confecciones</h2>
         <button class="menu-btn active" id="mPos" onclick="cambiarVista('pos')">Punto de Venta</button>
         <button class="menu-btn" id="mInv" onclick="cambiarVista('inventario')">Gestión de Inventario</button>
         <button class="menu-btn" id="mCaja" onclick="cambiarVista('caja')">Cierre de Caja</button>
@@ -538,19 +536,7 @@
 
                         <div id="casheaContainer" style="display: none; background: rgba(255,42,117,0.05); padding: 10px; border-radius: 8px; border: 1px dashed var(--primary-pink); margin-top: 8px;">
                             <label style="color: var(--primary-pink); font-weight: 600;">Opciones de Cashea:</label>
-                            
-                            <label style="font-size: 0.8rem; margin-top: 5px; color: var(--text-muted);">Nivel Oficial del Cliente:</label>
-                            <select id="casheaLevel">
-                                <option value="0.60">Nivel 1 (60% Inicial)</option>
-                                <option value="0.50">Nivel 2 (50% Inicial)</option>
-                                <option value="0.40" selected>Nivel 3 (40% Inicial)</option>
-                                <option value="0.40">Nivel 4 (40% Inicial Base / 25% Promocional)</option>
-                                <option value="0.40">Nivel 5 (40% Inicial Base / 20% Promocional)</option>
-                                <option value="0.40">Nivel 6 (40% Inicial Base / 0% Promocional)</option>
-                            </select>
-
-                            <input type="text" id="casheaRef" placeholder="N° de Referencia / Cédula" style="margin-bottom: 5px;">
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">Mínimo $25. Se calcula la inicial según el nivel oficial.</span>
+                            <input type="text" id="casheaRef" placeholder="N° de Referencia / Cédula" style="margin-top: 5px;">
                         </div>
                     </div>
 
@@ -578,9 +564,9 @@
         <div class="section-view" id="viewInventario">
             <div style="width: 100%; max-width: 950px;">
                 <div class="panel-box" style="max-width: 100%;">
-                    <h3>➕ Agregar Nuevo Producto (Soporta Scanner)</h3>
+                    <h3>➕ Agregar Nuevo Producto</h3>
                     <div style="display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 10px;">
-                        <input type="text" id="newProdCode" placeholder="Escanea código de barras">
+                        <input type="text" id="newProdCode" placeholder="Código de barras">
                         <input type="text" id="newProdName" placeholder="Nombre del producto">
                         <input type="number" id="newProdPrice" placeholder="Precio ($)" step="0.01">
                         <input type="number" id="newProdStock" placeholder="Stock">
@@ -609,14 +595,14 @@
         <!-- 3. VISTA CIERRE DE CAJA -->
         <div class="section-view" id="viewCaja">
             <div style="width: 100%; max-width: 900px;">
-                <div class="panel-box" style="max-width: 100%;">
-                    <h3>📊 Resumen del Turno Actual</h3>
+                <div class="panel-box" id="cajaReporteBox" style="max-width: 100%; background-color: var(--card-dark);">
+                    <h3>📊 Resumen del Turno Actual - Yaya Confecciones</h3>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 1rem;">
                         <span>Total Ventas: <strong id="cajaTotalVentas">0</strong></span>
                         <span>Monto Acumulado: <strong style="color: var(--primary-pink);" id="cajaMontoTotal">$0.00</strong></span>
                     </div>
 
-                    <h4 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 8px;">Detalle Venta por Venta (Turno Actual):</h4>
+                    <h4 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 8px;">Detalle Venta por Venta:</h4>
                     <table>
                         <thead>
                             <tr>
@@ -627,43 +613,25 @@
                         </thead>
                         <tbody id="ventasDiaBody"></tbody>
                     </table>
-
-                    <button class="btn-action" style="margin-top: 20px;" onclick="realizarCierreCaja()">🔒 Ejecutar Cierre de Caja (Z)</button>
                 </div>
 
-                <div class="panel-box" style="max-width: 100%;">
-                    <h3>📜 Historial de Cierres Anteriores</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Fecha y Hora</th>
-                                <th>Total Transacciones</th>
-                                <th>Monto Total ($)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="historialCierresBody"></tbody>
-                    </table>
-                </div>
+                <button class="btn-action" style="margin-top: 10px; background-color: #10b981;" onclick="descargarCierreImagen()">📥 Descargar Cierre como Imagen (PNG)</button>
+                <button class="btn-action" style="margin-top: 10px;" onclick="realizarCierreCaja()">🔒 Ejecutar Cierre de Caja y Reiniciar Turno</button>
             </div>
         </div>
 
-        <!-- 4. VISTA CONFIGURACIÓN RIF & TASA -->
+        <!-- 4. VISTA CONFIGURACIÓN -->
         <div class="section-view" id="viewConfig">
             <div class="panel-box">
                 <h3>⚙ Datos Fiscales & Tasa del Día</h3>
-                
-                <label style="color: var(--text-muted); font-size: 0.85rem;">Razón Social / Nombre de la Tienda:</label>
-                <input type="text" id="storeName" placeholder="INVERSIONES BLESSINGS, C.A.">
-
-                <label style="color: var(--text-muted); font-size: 0.85rem;">RIF de la Empresa:</label>
-                <input type="text" id="storeRif" placeholder="J-40123456-8">
-
-                <label style="color: var(--text-muted); font-size: 0.85rem;">Dirección Fiscal:</label>
-                <input type="text" id="storeAddress" placeholder="Av. Principal, Local Comercial">
-
-                <label style="color: var(--text-muted); font-size: 0.85rem; margin-top: 10px; display: block;">Tasa Cambiaria BCV (Bs por 1 USD):</label>
+                <label style="color: var(--text-muted); font-size: 0.85rem;">Razón Social:</label>
+                <input type="text" id="storeName" placeholder="Yaya Confecciones">
+                <label style="color: var(--text-muted); font-size: 0.85rem;">RIF:</label>
+                <input type="text" id="storeRif" placeholder="J-12345678-9">
+                <label style="color: var(--text-muted); font-size: 0.85rem;">Dirección:</label>
+                <input type="text" id="storeAddress" placeholder="Barquisimeto, Lara">
+                <label style="color: var(--text-muted); font-size: 0.85rem; margin-top: 10px; display: block;">Tasa BCV:</label>
                 <input type="number" id="storeTasa" placeholder="36.50" step="0.01">
-
                 <button class="btn-action" style="margin-top: 15px;" onclick="guardarConfig()">Guardar Configuración</button>
             </div>
         </div>
@@ -674,469 +642,9 @@
     <div class="modal" id="invoiceModal">
         <div class="invoice-box">
             <div class="invoice-header">
-                <h3 id="printStoreName">INVERSIONES BLESSINGS, C.A.</h3>
-                <p id="printStoreRif">RIF: J-40123456-8</p>
-                <p id="printStoreAddress">Av. Principal, Local Comercial</p>
+                <h3 id="printStoreName">YAYA CONFECCIONES</h3>
+                <p id="printStoreRif">RIF: J-12345678-9</p>
+                <p id="printStoreAddress">Barquisimeto, Lara</p>
                 <p>----------------------------------------</p>
                 <p><strong>FACTURA FISCAL</strong></p>
-                <p id="invNum">Nro: 00000125</p>
-            </div>
-            <div id="invBody"></div>
-            <div class="invoice-footer">
-                <p id="invPaymentMethod">Método: Efectivo USD</p>
-                <p>¡Gracias por su compra!</p>
-                <p>Sistema POS integrado</p>
-            </div>
-            <div class="modal-buttons">
-                <button class="btn-print" onclick="window.print()">🖨️ Imprimir Factura</button>
-                <button class="btn-close" onclick="cerrarModal()">Nueva Venta</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // --- LOGIN ---
-        function verificarLogin() {
-            const u = document.getElementById('loginUser').value;
-            const p = document.getElementById('loginPass').value;
-            if (u === 'yaya' && p === '14094923') {
-                document.getElementById('loginOverlay').style.display = 'none';
-            } else {
-                document.getElementById('loginError').style.display = 'block';
-            }
-        }
-
-        // --- BASE DE DATOS LOCALSTORAGE ---
-        let configStore = {
-            name: localStorage.getItem('store_name') || "INVERSIONES BLESSINGS, C.A.",
-            rif: localStorage.getItem('store_rif') || "J-40123456-8",
-            address: localStorage.getItem('store_address') || "Av. Principal, Local Comercial",
-            tasa: parseFloat(localStorage.getItem('store_tasa')) || 36.50
-        };
-
-        let products = JSON.parse(localStorage.getItem('store_products')) || [
-            { id: "750100", name: "Zapatos Deportivos", price: 45.00, stock: 12 },
-            { id: "750200", name: "Chemise Casual", price: 20.00, stock: 25 },
-            { id: "750300", name: "Pantalón Jean", price: 35.00, stock: 8 },
-            { id: "750400", name: "Gorra Urbana", price: 15.00, stock: 30 }
-        ];
-
-        let ventasDia = JSON.parse(localStorage.getItem('store_ventas_dia')) || [];
-        let historialCierres = JSON.parse(localStorage.getItem('store_cierres')) || [];
-        let cart = [];
-
-        document.getElementById('storeName').value = configStore.name;
-        document.getElementById('storeRif').value = configStore.rif;
-        document.getElementById('storeAddress').value = configStore.address;
-        document.getElementById('storeTasa').value = configStore.tasa;
-        document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
-
-        // --- NAVEGACIÓN ENTRE VISTAS ---
-        function cambiarVista(vista) {
-            document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active-view'));
-            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
-
-            if (vista === 'pos') {
-                document.getElementById('viewPos').classList.add('active-view');
-                document.getElementById('mPos').classList.add('active');
-                document.getElementById('searchProduct').value = '';
-                initCatalog();
-                document.getElementById('searchProduct').focus();
-            } else if (vista === 'inventario') {
-                document.getElementById('viewInventario').classList.add('active-view');
-                document.getElementById('mInv').classList.add('active');
-                renderInventarioTable();
-                document.getElementById('newProdCode').focus();
-            } else if (vista === 'caja') {
-                document.getElementById('viewCaja').classList.add('active-view');
-                document.getElementById('mCaja').classList.add('active');
-                renderCajaData();
-            } else if (vista === 'config') {
-                document.getElementById('viewConfig').classList.add('active-view');
-                document.getElementById('mConfig').classList.add('active');
-            }
-        }
-
-        // --- SOPORTE PARA SCANNER EN POS ---
-        document.getElementById('searchProduct').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const code = this.value.trim();
-                if (!code) return;
-
-                let prod = products.find(p => p.id.toString().toLowerCase() === code.toLowerCase() || p.name.toLowerCase() === code.toLowerCase());
-                
-                if (prod) {
-                    addToCart(prod.id);
-                    this.value = '';
-                    initCatalog();
-                } else {
-                    let nuevoNombre = prompt(`El código "${code}" no existe. Ingresa el nombre del producto:`);
-                    if (!nuevoNombre) {
-                        this.value = '';
-                        return;
-                    }
-                    let nuevoPrecio = parseFloat(prompt("Ingresa el precio en USD ($):", "10.00"));
-                    if (isNaN(nuevoPrecio)) nuevoPrecio = 10.00;
-
-                    let nuevoStock = parseInt(prompt("Ingresa la cantidad inicial en stock:", "50"));
-                    if (isNaN(nuevoStock)) nuevoStock = 50;
-
-                    let nuevoProd = { id: code, name: nuevoNombre, price: nuevoPrecio, stock: nuevoStock };
-                    products.push(nuevoProd);
-                    localStorage.setItem('store_products', JSON.stringify(products));
-
-                    cart.push({ ...nuevoProd, qty: 1 });
-                    renderCart();
-                    
-                    this.value = '';
-                    initCatalog();
-                    alert(`¡Producto "${nuevoNombre}" creado y agregado a la venta con éxito!`);
-                }
-            }
-        });
-
-        // --- MÓDULO POS ---
-        function initCatalog(lista = products) {
-            const grid = document.getElementById('productGrid');
-            if (lista.length === 0) {
-                grid.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No se encontraron productos.</p>';
-                return;
-            }
-            grid.innerHTML = lista.map(p => `
-                <div class="product-card" onclick="addToCart('${p.id}')">
-                    <h4>${p.name}</h4>
-                    <p>$${p.price.toFixed(2)}</p>
-                    <span>Stock: ${p.stock}</span>
-                </div>
-            `).join('');
-        }
-
-        function filtrarProductos() {
-            const texto = document.getElementById('searchProduct').value.toLowerCase();
-            const filtrados = products.filter(p => p.name.toLowerCase().includes(texto) || p.id.toString().toLowerCase().includes(texto));
-            initCatalog(filtrados);
-        }
-
-        function addToCart(id) {
-            const prod = products.find(p => p.id.toString() === id.toString());
-            if (!prod) return;
-            if (prod.stock <= 0) {
-                alert("¡Producto agotado!");
-                return;
-            }
-            const existing = cart.find(item => item.id.toString() === id.toString());
-            if (existing) {
-                if (existing.qty >= prod.stock) {
-                    alert("No hay más stock disponible de este producto.");
-                    return;
-                }
-                existing.qty++;
-            } else {
-                cart.push({ ...prod, qty: 1 });
-            }
-            renderCart();
-        }
-
-        function updateCartQty(id, newQty) {
-            let qty = parseInt(newQty);
-            const prod = products.find(p => p.id.toString() === id.toString());
-            const item = cart.find(i => i.id.toString() === id.toString());
-
-            if (!item || !prod) return;
-
-            if (isNaN(qty) || qty <= 0) {
-                removeFromCart(id);
-                return;
-            }
-
-            if (qty > prod.stock) {
-                alert(`Solo hay ${prod.stock} unidades disponibles en stock.`);
-                item.qty = prod.stock;
-            } else {
-                item.qty = qty;
-            }
-
-            renderCart();
-        }
-
-        function removeFromCart(id) {
-            cart = cart.filter(item => item.id.toString() !== id.toString());
-            renderCart();
-        }
-
-        function renderCart() {
-            const container = document.getElementById('cartItems');
-            if (cart.length === 0) {
-                container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona o escanea productos...</p>';
-                document.getElementById('subTotal').innerText = '$0.00';
-                document.getElementById('totalBs').innerText = 'Bs 0.00';
-                document.getElementById('finalTotal').innerText = '$0.00';
-                return;
-            }
-
-            let total = 0;
-            container.innerHTML = cart.map(item => {
-                let sub = item.price * item.qty;
-                total += sub;
-                return `
-                    <div class="cart-item">
-                        <div style="flex: 1; padding-right: 5px;">
-                            <strong>${item.name}</strong>
-                            <div style="color: var(--text-muted); font-size: 0.78rem;">$${item.price.toFixed(2)} c/u</div>
-                        </div>
-                        <div class="cart-controls">
-                            <button class="qty-btn" onclick="updateCartQty('${item.id}', ${item.qty - 1})">-</button>
-                            <input type="number" class="qty-input" value="${item.qty}" min="1" onchange="updateCartQty('${item.id}', this.value)">
-                            <button class="qty-btn" onclick="updateCartQty('${item.id}', ${item.qty + 1})">+</button>
-                            <span style="font-weight: 600; min-width: 50px; text-align: right;">$${sub.toFixed(2)}</span>
-                            <button class="btn-remove-item" onclick="removeFromCart('${item.id}')" title="Eliminar">✖</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            let totalBs = total * configStore.tasa;
-            document.getElementById('subTotal').innerText = `$${total.toFixed(2)}`;
-            document.getElementById('totalBs').innerText = `Bs ${totalBs.toFixed(2)}`;
-            document.getElementById('finalTotal').innerText = `$${total.toFixed(2)}`;
-        }
-
-        function toggleCasheaField() {
-            const method = document.getElementById('paymentMethod').value;
-            document.getElementById('casheaContainer').style.display = method === 'Cashea' ? 'block' : 'none';
-        }
-
-        function procesarVenta() {
-            if (cart.length === 0) {
-                alert("El carrito está vacío.");
-                return;
-            }
-
-            let total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-            const method = document.getElementById('paymentMethod').value;
-            let paymentDetails = `Método: ${method}`;
-
-            let porcentajeInicial = 0.40;
-            if (method === 'Cashea') {
-                if (total < 25) {
-                    alert("Error: El monto mínimo para compras con Cashea es de $25.00 USD.");
-                    return;
-                }
-                const ref = document.getElementById('casheaRef').value;
-                if (!ref) {
-                    alert("Por favor ingresa la referencia o cédula de Cashea.");
-                    return;
-                }
-                
-                porcentajeInicial = parseFloat(document.getElementById('casheaLevel').value);
-                let nivelTexto = document.getElementById('casheaLevel').selectedOptions[0].text;
-
-                let inicial = total * porcentajeInicial;
-                let financiado = total - inicial;
-                paymentDetails += ` (${nivelTexto}) (Ref: ${ref}) - Inicial: $${inicial.toFixed(2)} | Financiado: $${financiado.toFixed(2)}`;
-            }
-
-            cart.forEach(item => {
-                let p = products.find(prod => prod.id.toString() === item.id.toString());
-                if (p) p.stock -= item.qty;
-            });
-            localStorage.setItem('store_products', JSON.stringify(products));
-
-            ventasDia.push({
-                fecha: new Date().toLocaleString(),
-                total: total,
-                metodo: paymentDetails
-            });
-            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
-
-            document.getElementById('printStoreName').innerText = configStore.name;
-            document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
-            document.getElementById('printStoreAddress').innerText = configStore.address;
-
-            let bodyHTML = `
-                <p>Fecha: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
-                <p>----------------------------------------</p>
-            `;
-
-            cart.forEach(item => {
-                bodyHTML += `<div style="display:flex; justify-content:space-between;"><span>${item.qty}x ${item.name}</span><span>$${(item.price * item.qty).toFixed(2)}</span></div>`;
-            });
-
-            let totalBs = total * configStore.tasa;
-            bodyHTML += `
-                <p>----------------------------------------</p>
-                <div style="display:flex; justify-content:space-between;"><strong>Subtotal:</strong> <span>$${total.toFixed(2)}</span></div>
-                <div style="display:flex; justify-content:space-between;"><strong>Total Bs (Tasa ${configStore.tasa}):</strong> <span>Bs ${totalBs.toFixed(2)}</span></div>
-                <div style="display:flex; justify-content:space-between; font-size: 1rem; margin-top: 5px;"><strong>TOTAL USD:</strong> <strong>$${total.toFixed(2)}</strong></div>
-            `;
-
-            document.getElementById('invBody').innerHTML = bodyHTML;
-            document.getElementById('invPaymentMethod').innerText = paymentDetails;
-            document.getElementById('invoiceModal').style.display = 'flex';
-
-            cart = [];
-            renderCart();
-            initCatalog();
-        }
-
-        function cerrarModal() {
-            document.getElementById('invoiceModal').style.display = 'none';
-            document.getElementById('searchProduct').focus();
-        }
-
-        // --- MÓDULO INVENTARIO ---
-        function agregarProducto() {
-            const code = document.getElementById('newProdCode').value.trim();
-            const name = document.getElementById('newProdName').value.trim();
-            const price = parseFloat(document.getElementById('newProdPrice').value);
-            const stock = parseInt(document.getElementById('newProdStock').value);
-
-            if (!code || !name || isNaN(price) || isNaN(stock)) {
-                alert("Por favor completa todos los campos correctamente.");
-                return;
-            }
-
-            let existing = products.find(p => p.id.toString().toLowerCase() === code.toLowerCase());
-            if (existing) {
-                alert("Ya existe un producto con este código de barras.");
-                return;
-            }
-
-            products.push({ id: code, name, price, stock });
-            localStorage.setItem('store_products', JSON.stringify(products));
-
-            document.getElementById('newProdCode').value = '';
-            document.getElementById('newProdName').value = '';
-            document.getElementById('newProdPrice').value = '';
-            document.getElementById('newProdStock').value = '';
-
-            alert("¡Producto guardado en el inventario con éxito!");
-            renderInventarioTable();
-        }
-
-        function renderInventarioTable() {
-            const tbody = document.getElementById('inventoryTableBody');
-            tbody.innerHTML = products.map((p, index) => `
-                <tr>
-                    <td><input type="text" class="table-input" id="edit-id-${index}" value="${p.id}"></td>
-                    <td><input type="text" class="table-input" id="edit-name-${index}" value="${p.name}"></td>
-                    <td><input type="number" step="0.01" class="table-input" id="edit-price-${index}" value="${p.price}"></td>
-                    <td><input type="number" class="table-input" id="edit-stock-${index}" value="${p.stock}"></td>
-                    <td style="white-space: nowrap;">
-                        <button class="btn-save" onclick="guardarFila(${index}, '${p.id}')">💾 Guardar</button>
-                        <button class="btn-delete" onclick="eliminarProducto('${p.id}')">🗑️</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function guardarFila(index, originalId) {
-            let nuevoCodigo = document.getElementById(`edit-id-${index}`).value.trim();
-            let nuevoNombre = document.getElementById(`edit-name-${index}`).value.trim();
-            let nuevoPrecio = parseFloat(document.getElementById(`edit-price-${index}`).value);
-            let nuevoStock = parseInt(document.getElementById(`edit-stock-${index}`).value);
-
-            if (!nuevoCodigo || !nuevoNombre || isNaN(nuevoPrecio) || isNaN(nuevoStock)) {
-                alert("Por favor ingresa datos válidos antes de guardar.");
-                return;
-            }
-
-            let p = products.find(prod => prod.id.toString() === originalId.toString());
-            if (p) {
-                p.id = nuevoCodigo;
-                p.name = nuevoNombre;
-                p.price = nuevoPrecio;
-                p.stock = nuevoStock;
-
-                localStorage.setItem('store_products', JSON.stringify(products));
-                renderInventarioTable();
-                initCatalog();
-                alert("¡Producto actualizado exitosamente!");
-            }
-        }
-
-        function eliminarProducto(id) {
-            if (confirm("¿Seguro que deseas eliminar este producto?")) {
-                products = products.filter(p => p.id.toString() !== id.toString());
-                localStorage.setItem('store_products', JSON.stringify(products));
-                renderInventarioTable();
-                initCatalog();
-            }
-        }
-
-        // --- MÓDULO CAJA ---
-        function renderCajaData() {
-            document.getElementById('cajaTotalVentas').innerText = ventasDia.length;
-            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
-            document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
-
-            const tbody = document.getElementById('ventasDiaBody');
-            if (ventasDia.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay ventas registradas en este turno.</td></tr>';
-            } else {
-                tbody.innerHTML = ventasDia.map(v => `
-                    <tr>
-                        <td>${v.fecha}</td>
-                        <td>${v.metodo}</td>
-                        <td>$${v.total.toFixed(2)}</td>
-                    </tr>
-                `).join('');
-            }
-
-            const histBody = document.getElementById('historialCierresBody');
-            if (historialCierres.length === 0) {
-                histBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No hay cierres anteriores guardados.</td></tr>';
-            } else {
-                histBody.innerHTML = historialCierres.map(c => `
-                    <tr>
-                        <td>${c.fecha}</td>
-                        <td>${c.totalTransacciones}</td>
-                        <td>$${c.montoTotal.toFixed(2)}</td>
-                    </tr>
-                `).join('');
-            }
-        }
-
-        function realizarCierreCaja() {
-            if (ventasDia.length === 0) {
-                alert("No hay ventas en este turno para cerrar.");
-                return;
-            }
-            if (!confirm("¿Estás seguro de realizar el Cierre de Caja (Z)? Esto vaciará el turno actual.")) return;
-
-            let montoTotal = ventasDia.reduce((sum, v) => sum + v.total, 0);
-            historialCierres.push({
-                fecha: new Date().toLocaleString(),
-                totalTransacciones: ventasDia.length,
-                montoTotal: montoTotal
-            });
-            localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
-
-            ventasDia = [];
-            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
-            renderCajaData();
-            alert("¡Cierre de caja ejecutado con éxito!");
-        }
-
-        // --- CONFIGURACIÓN ---
-        function guardarConfig() {
-            configStore.name = document.getElementById('storeName').value.trim() || "INVERSIONES BLESSINGS, C.A.";
-            configStore.rif = document.getElementById('storeRif').value.trim() || "J-40123456-8";
-            configStore.address = document.getElementById('storeAddress').value.trim() || "Av. Principal, Local Comercial";
-            configStore.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
-
-            localStorage.setItem('store_name', configStore.name);
-            localStorage.setItem('store_rif', configStore.rif);
-            localStorage.setItem('store_address', configStore.address);
-            localStorage.setItem('store_tasa', configStore.tasa);
-
-            document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
-            alert("¡Configuración guardada con éxito!");
-        }
-
-        // Inicializar catálogo al arrancar
-        initCatalog();
-    </script>
-</body>
-</html>
+                <p id="invNum">Nro: 00000125</p
