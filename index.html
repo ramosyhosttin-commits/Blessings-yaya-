@@ -1039,24 +1039,23 @@
                 tbody.innerHTML = `<tr><td colspan="6" style="color:var(--text-muted); text-align:center;">No hay productos registrados.</td></tr>`;
                 return;
             }
-            tbody.innerHTML = products.map(p => `
+            tbody.innerHTML = products.map((p, index) => `
                 <tr>
-                    <td>${p.id}</td>
-                    <td><input type="text" class="table-input" value="${p.name}" onchange="guardarEdicionDirecta('${p.id}', 'name', this.value)"></td>
-                    <td><input type="number" class="table-input" step="0.01" value="${p.price}" onchange="guardarEdicionDirecta('${p.id}', 'price', this.value)"></td>
-                    <td><input type="number" class="table-input" step="0.01" value="${p.mayorPrice || (p.price * 0.85)}" onchange="guardarEdicionDirecta('${p.id}', 'mayorPrice', this.value)"></td>
-                    <td><input type="number" class="table-input" value="${p.stock}" onchange="guardarEdicionDirecta('${p.id}', 'stock', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${p.id}" onchange="guardarEdicionDirecta(${index}, 'id', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${p.name}" onchange="guardarEdicionDirecta(${index}, 'name', this.value)"></td>
+                    <td><input type="number" class="table-input" step="0.01" value="${p.price}" onchange="guardarEdicionDirecta(${index}, 'price', this.value)"></td>
+                    <td><input type="number" class="table-input" step="0.01" value="${p.mayorPrice || (p.price * 0.85)}" onchange="guardarEdicionDirecta(${index}, 'mayorPrice', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${p.stock}" onchange="guardarEdicionDirecta(${index}, 'stock', this.value)"></td>
                     <td><button class="btn-delete" onclick="eliminarProducto('${p.id}')">🗑️</button></td>
                 </tr>
             `).join('');
         }
 
-        function guardarEdicionDirecta(id, campo, valor) {
-            let prod = products.find(p => String(p.id) === String(id));
-            if (prod) {
-                if (campo === 'price' || campo === 'mayorPrice') prod[campo] = parseFloat(valor) || 0;
-                else if (campo === 'stock') prod.stock = parseInt(valor) || 0;
-                else prod[campo] = valor;
+        function guardarEdicionDirecta(index, campo, valor) {
+            if (products[index]) {
+                if (campo === 'price' || campo === 'mayorPrice') products[index][campo] = parseFloat(valor) || 0;
+                else if (campo === 'stock') products[index][campo] = parseInt(valor) || 0;
+                else products[index][campo] = valor.trim();
                 
                 localStorage.setItem('store_products', JSON.stringify(products));
                 initCatalog();
