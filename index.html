@@ -203,6 +203,7 @@
         .product-card span {
             font-size: 0.75rem;
             color: var(--text-muted);
+            display: block;
         }
 
         /* Carrito */
@@ -338,7 +339,7 @@
             border: 1px solid var(--border-dark);
             padding: 25px;
             border-radius: 12px;
-            max-width: 900px;
+            max-width: 950px;
             margin-bottom: 20px;
         }
 
@@ -421,7 +422,7 @@
 
         .btn-delete:hover { background: var(--primary-pink-hover); }
 
-        /* Modal Factura Fiscal */
+        /* Modal Factura Fiscal / Cierre Z */
         .modal {
             display: none;
             position: fixed;
@@ -521,14 +522,23 @@
         <!-- 1. VISTA POS -->
         <div class="section-view active-view" id="viewPos">
             <div class="catalog-section">
-                <h3>Catálogo de Productos</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3>Catálogo de Productos</h3>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Modo de Venta:</span>
+                        <select id="tipoVentaSelect" style="width: 130px; margin-bottom: 0; padding: 6px; font-size: 0.85rem;" onchange="cambiarModoPrecio()">
+                            <option value="detal">Detal</option>
+                            <option value="mayor">Al Mayor</option>
+                        </select>
+                    </div>
+                </div>
                 <input type="text" id="searchProduct" class="search-box" placeholder="🔍 Escanea o busca producto por nombre/código..." oninput="filtrarProductos()">
                 <div class="product-grid" id="productGrid"></div>
             </div>
 
             <div class="checkout-section">
                 <div>
-                    <h3>Venta Actual</h3>
+                    <h3>Venta Actual (<span id="lblModoCart" style="color: var(--primary-pink);">Detal</span>)</h3>
                     <div class="cart-items" id="cartItems">
                         <p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona o escanea productos...</p>
                     </div>
@@ -546,7 +556,6 @@
                             <option value="Cashea">Cashea (Financiamiento)</option>
                         </select>
 
-                        <!-- CASILLA CASHEA CORREGIDA CON NIVEL E INICIAL -->
                         <div id="casheaContainer" style="display: none; background: rgba(255,42,117,0.05); padding: 12px; border-radius: 8px; border: 1px dashed var(--primary-pink); margin-top: 8px;">
                             <label style="color: var(--primary-pink); font-weight: 600;">Opciones de Cashea:</label>
                             
@@ -593,26 +602,28 @@
         <div class="section-view" id="viewInventario">
             <div style="width: 100%; max-width: 950px;">
                 <div class="panel-box" style="max-width: 100%;">
-                    <h3>➕ Agregar Nuevo Producto</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 10px;">
-                        <input type="text" id="newProdCode" placeholder="Código de barras">
-                        <input type="text" id="newProdName" placeholder="Nombre del producto">
-                        <input type="number" id="newProdPrice" placeholder="Precio ($)" step="0.01">
+                    <h3>➕ Agregar Nuevo Producto (Detal y Mayor)</h3>
+                    <div style="display: grid; grid-template-columns: 1.2fr 2fr 1fr 1fr 1fr; gap: 10px;">
+                        <input type="text" id="newProdCode" placeholder="Código">
+                        <input type="text" id="newProdName" placeholder="Nombre">
+                        <input type="number" id="newProdPrice" placeholder="Precio Detal ($)" step="0.01">
+                        <input type="number" id="newProdMayorPrice" placeholder="Precio Mayor ($)" step="0.01">
                         <input type="number" id="newProdStock" placeholder="Stock">
                     </div>
                     <button class="btn-action" style="margin-top: 10px;" onclick="agregarProducto()">Guardar en Inventario</button>
                 </div>
 
                 <div class="panel-box" style="max-width: 100%;">
-                    <h3>📦 Stock Actual de Productos</h3>
+                    <h3>📦 Stock y Precios Actuales</h3>
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 20%;">Código / ID</th>
-                                <th style="width: 35%;">Nombre</th>
-                                <th style="width: 15%;">Precio ($)</th>
-                                <th style="width: 15%;">Stock</th>
-                                <th style="width: 15%;">Acción</th>
+                                <th style="width: 18%;">Código</th>
+                                <th style="width: 32%;">Nombre</th>
+                                <th style="width: 15%;">Detal ($)</th>
+                                <th style="width: 15%;">Mayor ($)</th>
+                                <th style="width: 10%;">Stock</th>
+                                <th style="width: 10%;">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="inventoryTableBody"></tbody>
@@ -679,7 +690,7 @@
                         <thead>
                             <tr>
                                 <th>Hora / Fecha</th>
-                                <th>Método de Pago</th>
+                                <th>Método / Tipo</th>
                                 <th>Monto Total ($)</th>
                             </tr>
                         </thead>
@@ -688,6 +699,7 @@
                 </div>
 
                 <button class="btn-action" style="margin-top: 10px; background-color: #10b981;" onclick="descargarCierreImagen()">📥 Descargar Reporte del Turno (PNG)</button>
+                <button class="btn-action" style="margin-top: 10px; background-color: #3b82f6;" onclick="imprimirReporteCierre()">🖨️ Imprimir Ticket de Cierre (Cierre Z)</button>
                 <button class="btn-action" style="margin-top: 10px;" onclick="realizarCierreCaja()">🔒 Cerrar Turno Actual e Iniciar Siguiente Turno</button>
 
                 <div class="panel-box" style="max-width: 100%; margin-top: 30px;">
@@ -725,7 +737,7 @@
 
     </div>
 
-    <!-- Modal Factura Fiscal -->
+    <!-- Modal Factura Fiscal / Cierre -->
     <div class="modal" id="invoiceModal">
         <div class="invoice-box">
             <div class="invoice-header">
@@ -733,7 +745,7 @@
                 <p id="printStoreRif">RIF: J-12345678-9</p>
                 <p id="printStoreAddress">Barquisimeto, Lara</p>
                 <p>----------------------------------------</p>
-                <p><strong>FACTURA FISCAL</strong></p>
+                <p><strong id="printTitleType">FACTURA FISCAL</strong></p>
                 <p id="invNum">Nro: 00000125</p>
             </div>
             <div id="invBody"></div>
@@ -743,7 +755,7 @@
             </div>
             <div class="modal-buttons">
                 <button class="btn-print" onclick="window.print()">🖨️ Imprimir Ticket</button>
-                <button class="btn-close" onclick="cerrarModal()">Nueva Venta</button>
+                <button class="btn-close" onclick="cerrarModal()">Aceptar / Continuar</button>
             </div>
         </div>
     </div>
@@ -769,6 +781,13 @@
 
         let products = JSON.parse(localStorage.getItem('store_products')) || [];
 
+        products = products.map(p => {
+            if (p.mayorPrice === undefined) {
+                p.mayorPrice = parseFloat((p.price * 0.85).toFixed(2));
+            }
+            return p;
+        });
+
         products = products.filter(p => {
             let name = String(p.name || '').toUpperCase();
             let id = String(p.id || '').trim();
@@ -780,6 +799,7 @@
         let ventasDia = JSON.parse(localStorage.getItem('store_ventas_dia')) || [];
         let historialCierres = JSON.parse(localStorage.getItem('store_cierres')) || [];
         let cart = [];
+        let modoVentaActual = 'detal';
 
         document.getElementById('storeName').value = configStore.name;
         document.getElementById('storeRif').value = configStore.rif;
@@ -809,6 +829,12 @@
             }
         }
 
+        function cambiarModoPrecio() {
+            modoVentaActual = document.getElementById('tipoVentaSelect').value;
+            document.getElementById('lblModoCart').innerText = modoVentaActual === 'mayor' ? 'Al Mayor' : 'Detal';
+            initCatalog();
+        }
+
         document.getElementById('searchProduct').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -822,12 +848,15 @@
                 } else {
                     let nuevoNombre = prompt(`El código "${code}" no existe. Ingresa el nombre del producto:`);
                     if (!nuevoNombre) { this.value = ''; return; }
-                    let nuevoPrecio = parseFloat(prompt("Precio en USD ($):", "10.00")) || 10.00;
+                    let nuevoPrecio = parseFloat(prompt("Precio Detal USD ($):", "10.00")) || 10.00;
+                    let nuevoMayor = parseFloat(prompt("Precio Al Mayor USD ($):", (nuevoPrecio * 0.85).toFixed(2))) || (nuevoPrecio * 0.85);
                     let nuevoStock = parseInt(prompt("Cantidad en stock:", "50")) || 50;
-                    let nuevoProd = { id: code, name: nuevoNombre, price: nuevoPrecio, stock: nuevoStock };
+                    let nuevoProd = { id: code, name: nuevoNombre, price: nuevoPrecio, mayorPrice: nuevoMayor, stock: nuevoStock };
                     products.push(nuevoProd);
                     localStorage.setItem('store_products', JSON.stringify(products));
-                    cart.push({ ...nuevoProd, qty: 1 });
+                    
+                    let precioAplicado = modoVentaActual === 'mayor' ? nuevoMayor : nuevoPrecio;
+                    cart.push({ ...nuevoProd, activePrice: precioAplicado, tipo: modoVentaActual, qty: 1 });
                     renderCart();
                     this.value = '';
                     initCatalog();
@@ -841,13 +870,18 @@
                 grid.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No hay productos en inventario.</p>';
                 return;
             }
-            grid.innerHTML = lista.map(p => `
-                <div class="product-card" onclick="addToCart('${p.id}')">
-                    <h4>${p.name}</h4>
-                    <p>$${parseFloat(p.price).toFixed(2)}</p>
-                    <span>Stock: ${p.stock}</span>
-                </div>
-            `).join('');
+            grid.innerHTML = lista.map(p => {
+                let pDetal = parseFloat(p.price || 0).toFixed(2);
+                let pMayor = parseFloat(p.mayorPrice || (p.price * 0.85)).toFixed(2);
+                let precioMostrado = modoVentaActual === 'mayor' ? pMayor : pDetal;
+                return `
+                    <div class="product-card" onclick="addToCart('${p.id}')">
+                        <h4>${p.name}</h4>
+                        <p>$${precioMostrado} <span style="font-size:0.7rem; color:var(--text-muted);">(${modoVentaActual})</span></p>
+                        <span>Stock: ${p.stock} | Detal: $${pDetal} | Mayor: $${pMayor}</span>
+                    </div>
+                `;
+            }).join('');
         }
 
         function filtrarProductos() {
@@ -859,28 +893,31 @@
         function addToCart(id) {
             const prod = products.find(p => String(p.id) === String(id));
             if (!prod || prod.stock <= 0) { alert("¡Producto agotado!"); return; }
-            const existing = cart.find(item => String(item.id) === String(id));
+            
+            let precioFinal = modoVentaActual === 'mayor' ? (prod.mayorPrice || prod.price * 0.85) : prod.price;
+
+            const existing = cart.find(item => String(item.id) === String(id) && item.tipo === modoVentaActual);
             if (existing) {
                 if (existing.qty >= prod.stock) { alert("Stock máximo alcanzado."); return; }
                 existing.qty++;
             } else {
-                cart.push({ ...prod, qty: 1 });
+                cart.push({ ...prod, activePrice: precioFinal, tipo: modoVentaActual, qty: 1 });
             }
             renderCart();
         }
 
-        function updateCartQty(id, newQty) {
+        function updateCartQty(id, tipo, newQty) {
             let qty = parseInt(newQty);
             const prod = products.find(p => String(p.id) === String(id));
-            const item = cart.find(i => String(i.id) === String(id));
+            const item = cart.find(i => String(i.id) === String(id) && i.tipo === tipo);
             if (!item || !prod) return;
-            if (isNaN(qty) || qty <= 0) { removeFromCart(id); return; }
+            if (isNaN(qty) || qty <= 0) { removeFromCart(id, tipo); return; }
             item.qty = qty > prod.stock ? prod.stock : qty;
             renderCart();
         }
 
-        function removeFromCart(id) {
-            cart = cart.filter(item => String(item.id) !== String(id));
+        function removeFromCart(id, tipo) {
+            cart = cart.filter(item => !(String(item.id) === String(id) && item.tipo === tipo));
             renderCart();
         }
 
@@ -896,19 +933,20 @@
             }
             let total = 0;
             container.innerHTML = cart.map(item => {
-                let sub = item.price * item.qty;
+                let sub = item.activePrice * item.qty;
                 total += sub;
+                let etiquetaTipo = item.tipo === 'mayor' ? '[MAYOR]' : '[DETAL]';
                 return `
                     <div class="cart-item">
                         <div>
-                            <strong>${item.name}</strong><br>
-                            <small>$${parseFloat(item.price).toFixed(2)} x ${item.qty} = $${sub.toFixed(2)}</small>
+                            <strong>${item.name}</strong> <span style="font-size:0.75rem; color:var(--primary-pink);">${etiquetaTipo}</span><br>
+                            <small>$${parseFloat(item.activePrice).toFixed(2)} x ${item.qty} = $${sub.toFixed(2)}</small>
                         </div>
                         <div class="cart-controls">
-                            <button class="qty-btn" onclick="updateCartQty('${item.id}', ${item.qty - 1})">-</button>
-                            <input type="number" class="qty-input" value="${item.qty}" onchange="updateCartQty('${item.id}', this.value)">
-                            <button class="qty-btn" onclick="updateCartQty('${item.id}', ${item.qty + 1})">+</button>
-                            <button class="btn-remove-item" onclick="removeFromCart('${item.id}')">✕</button>
+                            <button class="qty-btn" onclick="updateCartQty('${item.id}', '${item.tipo}', ${item.qty - 1})">-</button>
+                            <input type="number" class="qty-input" value="${item.qty}" onchange="updateCartQty('${item.id}', '${item.tipo}', this.value)">
+                            <button class="qty-btn" onclick="updateCartQty('${item.id}', '${item.tipo}', ${item.qty + 1})">+</button>
+                            <button class="btn-remove-item" onclick="removeFromCart('${item.id}', '${item.tipo}')">✕</button>
                         </div>
                     </div>
                 `;
@@ -931,7 +969,7 @@
         }
 
         function calcularInicialCashea() {
-            let total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+            let total = cart.reduce((acc, item) => acc + (item.activePrice * item.qty), 0);
             let porcentaje = parseFloat(document.getElementById('casheaLevel').value) || 0.40;
             let inicialUSD = total * porcentaje;
             let inicialBs = inicialUSD * configStore.tasa;
@@ -941,7 +979,7 @@
 
         function procesarVenta() {
             if (cart.length === 0) { alert("El carrito está vacío."); return; }
-            let total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+            let total = cart.reduce((acc, item) => acc + (item.activePrice * item.qty), 0);
             
             cart.forEach(item => {
                 let p = products.find(prod => String(prod.id) === String(item.id));
@@ -973,12 +1011,14 @@
             document.getElementById('printStoreName').innerText = configStore.name;
             document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
             document.getElementById('printStoreAddress').innerText = configStore.address;
+            document.getElementById('printTitleType').innerText = "FACTURA FISCAL";
             document.getElementById('invNum').innerText = `Nro: 00000${Math.floor(Math.random() * 90000 + 10000)}`;
             document.getElementById('invPaymentMethod').innerText = `Método: ${detalleMetodo}`;
 
             let bodyHtml = `<table><tr><th>Cant Item</th><th>Total</th></tr>`;
             cart.forEach(i => {
-                bodyHtml += `<tr><td>${i.qty}x ${i.name}</td><td>$${(i.price * i.qty).toFixed(2)}</td></tr>`;
+                let tipoLabel = i.tipo === 'mayor' ? '(Mayor)' : '(Detal)';
+                bodyHtml += `<tr><td>${i.qty}x ${i.name} ${tipoLabel}</td><td>$${(i.activePrice * i.qty).toFixed(2)}</td></tr>`;
             });
             bodyHtml += `</table><br><strong>TOTAL: $${total.toFixed(2)}</strong><br><strong>TOTAL Bs: ${(total * configStore.tasa).toFixed(2)}</strong>`;
             document.getElementById('invBody').innerHTML = bodyHtml;
@@ -996,7 +1036,7 @@
         function renderInventarioTable() {
             const tbody = document.getElementById('inventoryTableBody');
             if (products.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="color:var(--text-muted); text-align:center;">No hay productos registrados.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="color:var(--text-muted); text-align:center;">No hay productos registrados.</td></tr>`;
                 return;
             }
             tbody.innerHTML = products.map(p => `
@@ -1004,8 +1044,9 @@
                     <td>${p.id}</td>
                     <td><input type="text" class="table-input" value="${p.name}" onchange="guardarEdicionDirecta('${p.id}', 'name', this.value)"></td>
                     <td><input type="number" class="table-input" step="0.01" value="${p.price}" onchange="guardarEdicionDirecta('${p.id}', 'price', this.value)"></td>
+                    <td><input type="number" class="table-input" step="0.01" value="${p.mayorPrice || (p.price * 0.85)}" onchange="guardarEdicionDirecta('${p.id}', 'mayorPrice', this.value)"></td>
                     <td><input type="number" class="table-input" value="${p.stock}" onchange="guardarEdicionDirecta('${p.id}', 'stock', this.value)"></td>
-                    <td><button class="btn-delete" onclick="eliminarProducto('${p.id}')">🗑️ Borrar</button></td>
+                    <td><button class="btn-delete" onclick="eliminarProducto('${p.id}')">🗑️</button></td>
                 </tr>
             `).join('');
         }
@@ -1013,7 +1054,7 @@
         function guardarEdicionDirecta(id, campo, valor) {
             let prod = products.find(p => String(p.id) === String(id));
             if (prod) {
-                if (campo === 'price') prod.price = parseFloat(valor) || 0;
+                if (campo === 'price' || campo === 'mayorPrice') prod[campo] = parseFloat(valor) || 0;
                 else if (campo === 'stock') prod.stock = parseInt(valor) || 0;
                 else prod[campo] = valor;
                 
@@ -1026,15 +1067,19 @@
             let id = document.getElementById('newProdCode').value.trim();
             let name = document.getElementById('newProdName').value.trim();
             let price = parseFloat(document.getElementById('newProdPrice').value);
+            let mayorPrice = parseFloat(document.getElementById('newProdMayorPrice').value);
             let stock = parseInt(document.getElementById('newProdStock').value);
-            if (!id || !name || isNaN(price) || isNaN(stock)) { alert("Completa todos los campos correctamente."); return; }
             
-            products.push({ id, name, price, stock });
+            if (!id || !name || isNaN(price) || isNaN(stock)) { alert("Completa los campos principales correctamente."); return; }
+            if (isNaN(mayorPrice)) mayorPrice = price * 0.85;
+            
+            products.push({ id, name, price, mayorPrice, stock });
             localStorage.setItem('store_products', JSON.stringify(products));
             
             document.getElementById('newProdCode').value = '';
             document.getElementById('newProdName').value = '';
             document.getElementById('newProdPrice').value = '';
+            document.getElementById('newProdMayorPrice').value = '';
             document.getElementById('newProdStock').value = '';
             
             renderInventarioTable();
@@ -1120,10 +1165,47 @@
             });
         }
 
+        function imprimirReporteCierre() {
+            let mEfUSD = 0, mEfBs = 0, mPunto = 0, mPagoMovil = 0, mZelle = 0, mCashea = 0;
+            ventasDia.forEach(v => {
+                if (v.metodo === 'Efectivo USD') mEfUSD += v.total;
+                else if (v.metodo === 'Efectivo Bs') mEfBs += v.total;
+                else if (v.metodo === 'Punto de Venta') mPunto += v.total;
+                else if (v.metodo === 'Pago Móvil') mPagoMovil += v.total;
+                else if (v.metodo === 'Zelle') mZelle += v.total;
+                else if (v.metodo === 'Cashea') mCashea += v.total;
+            });
+            let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
+
+            document.getElementById('printStoreName').innerText = configStore.name;
+            document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
+            document.getElementById('printStoreAddress').innerText = configStore.address;
+            document.getElementById('printTitleType').innerText = `CIERRE Z - TURNO #${currentTurnoNum}`;
+            document.getElementById('invNum').innerText = `Fecha: ${new Date().toLocaleString()}`;
+            document.getElementById('invPaymentMethod').innerText = `Transacciones: ${ventasDia.length}`;
+
+            let bodyHtml = `
+                <table>
+                    <tr><td><strong>Efectivo ($):</strong></td><td>$${mEfUSD.toFixed(2)}</td></tr>
+                    <tr><td><strong>Efectivo (Bs):</strong></td><td>$${mEfBs.toFixed(2)}</td></tr>
+                    <tr><td><strong>Punto de Venta:</strong></td><td>$${mPunto.toFixed(2)}</td></tr>
+                    <tr><td><strong>Pago Móvil:</strong></td><td>$${mPagoMovil.toFixed(2)}</td></tr>
+                    <tr><td><strong>Zelle:</strong></td><td>$${mZelle.toFixed(2)}</td></tr>
+                    <tr><td><strong>Cashea:</strong></td><td>$${mCashea.toFixed(2)}</td></tr>
+                </table>
+                <br><strong>TOTAL RECAUDADO: $${montoTotal.toFixed(2)}</strong>
+                <br><strong>TOTAL EN Bs: ${(montoTotal * configStore.tasa).toFixed(2)}</strong>
+            `;
+            document.getElementById('invBody').innerHTML = bodyHtml;
+            document.getElementById('invoiceModal').style.display = 'flex';
+        }
+
         function realizarCierreCaja() {
             if (ventasDia.length === 0) { alert("No hay ventas en este turno para cerrar."); return; }
             if (!confirm(`¿Estás seguro de cerrar el Turno #${currentTurnoNum}? Se guardará el resumen por método de pago y comenzará un nuevo turno.`)) return;
             
+            imprimirReporteCierre();
+
             let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
             
             historialCierres.unshift({
@@ -1141,7 +1223,6 @@
             localStorage.removeItem('store_ventas_dia');
             
             renderCajaData();
-            alert(`¡Turno cerrado con éxito! Iniciando Turno #${currentTurnoNum}.`);
         }
 
         function guardarConfig() {
