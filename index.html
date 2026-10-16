@@ -446,7 +446,7 @@
 
         .btn-delete:hover { background: var(--primary-pink-hover); }
 
-        /* Modal Factura Fiscal / Cierre Z */
+        /* Modal Nota de Entrega / Cierre Z */
         .modal {
             display: none;
             position: fixed;
@@ -761,7 +761,7 @@
 
     </div>
 
-    <!-- Modal Factura Fiscal / Cierre -->
+    <!-- Modal Nota de Entrega / Cierre -->
     <div class="modal" id="invoiceModal">
         <div class="invoice-box">
             <div class="invoice-header">
@@ -769,13 +769,14 @@
                 <p id="printStoreRif">RIF: J-12345678-9</p>
                 <p id="printStoreAddress">Barquisimeto, Lara</p>
                 <p>----------------------------------------</p>
-                <p><strong id="printTitleType">FACTURA FISCAL</strong></p>
+                <p><strong id="printTitleType">NOTA DE ENTREGA</strong></p>
                 <p id="invNum">Nro: 00000125</p>
             </div>
             <div id="invBody"></div>
             <div class="invoice-footer">
                 <p id="invPaymentMethod">Método: Efectivo USD</p>
-                <p>¡Gracias por su compra en Yaya Confecciones!</p>
+                <p style="margin-top: 4px; font-weight: bold; font-size: 0.7rem;">Documento no válido como factura fiscal</p>
+                <p style="margin-top: 4px;">¡Gracias por su compra en Yaya Confecciones!</p>
             </div>
             <div class="modal-buttons">
                 <button class="btn-print" onclick="window.print()">🖨️ Imprimir Ticket</button>
@@ -1038,7 +1039,7 @@
             document.getElementById('printStoreName').innerText = configStore.name;
             document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
             document.getElementById('printStoreAddress').innerText = configStore.address;
-            document.getElementById('printTitleType').innerText = "FACTURA FISCAL";
+            document.getElementById('printTitleType').innerText = "NOTA DE ENTREGA";
             document.getElementById('invNum').innerText = `Nro: 00000${Math.floor(Math.random() * 90000 + 10000)}`;
             document.getElementById('invPaymentMethod').innerText = `Método: ${detalleMetodo}`;
 
