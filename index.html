@@ -185,7 +185,7 @@
 
         .search-container {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             margin-bottom: 15px;
             align-items: center;
         }
@@ -207,24 +207,39 @@
             border-color: var(--primary-pink);
         }
 
-        .btn-mic {
+        /* Botón de la Flor Interactiva IA */
+        .btn-flower-ai {
             background-color: var(--card-dark);
             border: 1px solid var(--border-dark);
-            color: var(--primary-pink);
-            padding: 10px 14px;
-            border-radius: 8px;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 1.1rem;
-            transition: 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.2s ease;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
-        .btn-mic:hover, .btn-mic.listening {
+        .btn-flower-ai:hover {
             background-color: var(--soft-pink-bg);
             border-color: var(--primary-pink);
-            transform: scale(1.05);
+            transform: scale(1.08);
+        }
+
+        /* Animación cuando la flor está escuchando */
+        .btn-flower-ai.listening {
+            background-color: var(--soft-pink-bg);
+            border-color: var(--primary-pink);
+            animation: pulseFlower 1.2s infinite alternate;
+        }
+
+        @keyframes pulseFlower {
+            0% { transform: scale(1); box-shadow: 0 0 5px var(--primary-pink); }
+            100% { transform: scale(1.15); box-shadow: 0 0 20px var(--primary-pink); }
         }
 
         .product-grid {
@@ -604,7 +619,7 @@
                 
                 <div class="search-container">
                     <input type="text" id="searchProduct" class="search-box" placeholder="🔍 Escribe o di un comando ('agrega...', 'facturar')..." oninput="filtrarProductos()">
-                    <button class="btn-mic" id="btnMic" onclick="toggleReconocimientoVoz()" title="Hablar con Asistente Yaya">🎙️</button>
+                    <button class="btn-flower-ai" id="btnFlowerAI" onclick="toggleReconocimientoVoz()" title="Activar Asistente Yaya (Flor IA)">🌸</button>
                 </div>
                 <p id="aiFeedback" style="font-size: 0.75rem; color: var(--primary-pink); margin-bottom: 10px; min-height: 15px;"></p>
 
@@ -969,36 +984,36 @@
             initCatalog();
         }
 
-        // --- ASISTENTE YAYA (IA Inteligente de Comandos y Filtros) ---
+        // --- ASISTENTE YAYA (IA Inteligente con Flor Interactiva 🌸) ---
         function procesarComandoIA(textoOrden) {
             let orden = textoOrden.toLowerCase().trim();
             const feedback = document.getElementById('aiFeedback');
-            feedback.innerText = `🤖 Asistente Yaya procesando: "${textoOrden}"`;
+            feedback.innerText = `🌸 Asistente Yaya procesando: "${textoOrden}"`;
 
             // 1. Navegación
             if (orden.includes('inventario') || orden.includes('ver inventario')) {
                 cambiarVista('inventario');
-                feedback.innerText = "🤖 Asistente Yaya: Abriendo sección de Inventario.";
+                feedback.innerText = "🌸 Asistente Yaya: Abriendo sección de Inventario.";
                 return;
             }
             if (orden.includes('caja') || orden.includes('cierre de caja')) {
                 cambiarVista('caja');
-                feedback.innerText = "🤖 Asistente Yaya: Abriendo Cierre de Caja.";
+                feedback.innerText = "🌸 Asistente Yaya: Abriendo Cierre de Caja.";
                 return;
             }
             if (orden.includes('libro') || orden.includes('libro de ventas')) {
                 cambiarVista('libro');
-                feedback.innerText = "🤖 Asistente Yaya: Abriendo Libro de Ventas.";
+                feedback.innerText = "🌸 Asistente Yaya: Abriendo Libro de Ventas.";
                 return;
             }
             if (orden.includes('configuración') || orden.includes('configuracion')) {
                 cambiarVista('config');
-                feedback.innerText = "🤖 Asistente Yaya: Abriendo Configuración.";
+                feedback.innerText = "🌸 Asistente Yaya: Abriendo Configuración.";
                 return;
             }
             if (orden.includes('punto de venta') || orden.includes('volver al pos') || orden.includes('catalogo')) {
                 cambiarVista('pos');
-                feedback.innerText = "🤖 Asistente Yaya: Abriendo Punto de Venta.";
+                feedback.innerText = "🌸 Asistente Yaya: Abriendo Punto de Venta.";
                 return;
             }
 
@@ -1006,24 +1021,24 @@
             if (orden.includes('al mayor') || orden.includes('modo mayor')) {
                 document.getElementById('tipoVentaSelect').value = 'mayor';
                 cambiarModoPrecio();
-                feedback.innerText = "🤖 Asistente Yaya: Cambiado a modo Al Mayor.";
+                feedback.innerText = "🌸 Asistente Yaya: Cambiado a modo Al Mayor.";
                 return;
             }
             if (orden.includes('detal') || orden.includes('modo detal')) {
                 document.getElementById('tipoVentaSelect').value = 'detal';
                 cambiarModoPrecio();
-                feedback.innerText = "🤖 Asistente Yaya: Cambiado a modo Detal.";
+                feedback.innerText = "🌸 Asistente Yaya: Cambiado a modo Detal.";
                 return;
             }
 
             // 3. Procesar venta
             if (orden.includes('facturar') || orden.includes('cobrar') || orden.includes('procesar venta')) {
-                feedback.innerText = "🤖 Asistente Yaya: Procesando factura...";
+                feedback.innerText = "🌸 Asistente Yaya: Procesando factura...";
                 procesarVenta();
                 return;
             }
 
-            // 4. Agregar producto inteligente (Quita palabras sobrantes como "agrega", "el carrito", etc.)
+            // 4. Agregar producto inteligente
             let textoLimpio = orden
                 .replace(/agrega|añade|mete|al carrito|a la cesta|carrito|cesta|por favor|un|una/gi, '')
                 .trim();
@@ -1031,11 +1046,9 @@
             let matchCantidad = orden.match(/\d+/);
             let cantidadAAgregar = matchCantidad ? parseInt(matchCantidad[0]) : 1;
 
-            // Si quedan palabras después de limpiar, intentamos buscar el producto
             let prod = products.find(p => String(p.id).toLowerCase() === textoLimpio || String(p.name).toLowerCase().includes(textoLimpio));
             
             if (!prod && textoLimpio.length > 2) {
-                // Búsqueda parcial por palabras clave
                 prod = products.find(p => {
                     let nombreProd = p.name.toLowerCase();
                     return textoLimpio.split(' ').some(palabra => palabra.length > 2 && nombreProd.includes(palabra));
@@ -1046,13 +1059,12 @@
                 for(let i = 0; i < cantidadAAgregar; i++) {
                     addToCart(prod.id);
                 }
-                feedback.innerText = `🤖 Asistente Yaya: ¡Agregado ${prod.name} al carrito!`;
+                feedback.innerText = `🌸 Asistente Yaya: ¡Agregado ${prod.name} al carrito!`;
                 document.getElementById('searchProduct').value = '';
                 initCatalog();
             } else {
-                // Si no es un comando exacto ni encuentra producto, hace filtro visual normal en el catálogo
                 filtrarProductos();
-                feedback.innerText = `🤖 Asistente Yaya: Mostrando resultados para "${textoOrden}".`;
+                feedback.innerText = `🌸 Asistente Yaya: Mostrando resultados para "${textoOrden}".`;
             }
         }
 
@@ -1065,10 +1077,10 @@
             }
         });
 
-        // Reconocimiento de Voz (Web Speech API)
+        // Reconocimiento de Voz activado por la Flor IA 🌸
         let recognition = null;
         function toggleReconocimientoVoz() {
-            const btnMic = document.getElementById('btnMic');
+            const btnFlower = document.getElementById('btnFlowerAI');
             const feedback = document.getElementById('aiFeedback');
 
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -1084,8 +1096,8 @@
                 recognition.maxAlternatives = 1;
 
                 recognition.onstart = function() {
-                    btnMic.classList.add('listening');
-                    feedback.innerText = "🎙️ Asistente Yaya escuchando... Habla claro.";
+                    btnFlower.classList.add('listening');
+                    feedback.innerText = "🌸 Asistente Yaya escuchando... ¡Habla flor!";
                 };
 
                 recognition.onresult = function(event) {
@@ -1095,12 +1107,12 @@
                 };
 
                 recognition.onerror = function(event) {
-                    btnMic.classList.remove('listening');
+                    btnFlower.classList.remove('listening');
                     feedback.innerText = "❌ No se entendió el audio. Intenta de nuevo.";
                 };
 
                 recognition.onend = function() {
-                    btnMic.classList.remove('listening');
+                    btnFlower.classList.remove('listening');
                 };
             }
 
