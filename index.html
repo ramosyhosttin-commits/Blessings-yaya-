@@ -20,7 +20,6 @@
             --soft-pink-bg: rgba(255, 42, 117, 0.1);
         }
 
-        /* Variables para el Modo Claro */
         body.light-theme {
             --bg-dark: #f4f6f9;
             --card-dark: #ffffff;
@@ -46,7 +45,6 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* Pantalla de Login */
         #loginOverlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -95,7 +93,6 @@
             font-size: 1.4rem;
         }
 
-        /* Sidebar */
         .sidebar {
             width: 260px;
             background-color: var(--card-dark);
@@ -130,7 +127,6 @@
             color: var(--primary-pink);
         }
 
-        /* Vistas Principales */
         .main-container {
             flex: 1;
             display: flex;
@@ -186,7 +182,7 @@
         .search-container {
             display: flex;
             gap: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             align-items: center;
         }
 
@@ -207,7 +203,7 @@
             border-color: var(--primary-pink);
         }
 
-        /* Botón de la Flor Interactiva IA */
+        /* Flor IA Interactiva */
         .btn-flower-ai {
             background-color: var(--card-dark);
             border: 1px solid var(--border-dark);
@@ -230,7 +226,6 @@
             transform: scale(1.08);
         }
 
-        /* Animación cuando la flor está escuchando */
         .btn-flower-ai.listening {
             background-color: var(--soft-pink-bg);
             border-color: var(--primary-pink);
@@ -240,6 +235,30 @@
         @keyframes pulseFlower {
             0% { transform: scale(1); box-shadow: 0 0 5px var(--primary-pink); }
             100% { transform: scale(1.15); box-shadow: 0 0 20px var(--primary-pink); }
+        }
+
+        /* Diálogo Inteligente Asistente Yaya */
+        .ai-chat-box {
+            background: linear-gradient(135deg, rgba(255,42,117,0.1), rgba(18,18,18,0.9));
+            border: 1px solid var(--primary-pink);
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            font-size: 0.88rem;
+        }
+
+        .ai-chat-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary-pink);
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .ai-chat-text {
+            color: var(--text-main);
+            line-height: 1.3;
         }
 
         .product-grid {
@@ -284,7 +303,6 @@
             display: block;
         }
 
-        /* Carrito */
         .cart-items {
             flex: 1;
             overflow-y: auto;
@@ -500,7 +518,6 @@
 
         .btn-delete:hover { background: var(--primary-pink-hover); }
 
-        /* Modal Comprobante */
         .modal {
             display: none;
             position: fixed;
@@ -581,7 +598,6 @@
 </head>
 <body>
 
-    <!-- PANTALLA DE LOGIN -->
     <div id="loginOverlay">
         <div class="login-box">
             <h2>🛍️ Yaya Confecciones Login</h2>
@@ -618,10 +634,17 @@
                 </div>
                 
                 <div class="search-container">
-                    <input type="text" id="searchProduct" class="search-box" placeholder="🔍 Escribe o di un comando ('agrega...', 'facturar')..." oninput="filtrarProductos()">
-                    <button class="btn-flower-ai" id="btnFlowerAI" onclick="toggleReconocimientoVoz()" title="Activar Asistente Yaya (Flor IA)">🌸</button>
+                    <input type="text" id="searchProduct" class="search-box" placeholder="🔍 Escribe o habla con la flor IA..." oninput="filtrarProductos()">
+                    <button class="btn-flower-ai" id="btnFlowerAI" onclick="toggleReconocimientoVoz()" title="Activar Asistente Yaya">🌸</button>
                 </div>
-                <p id="aiFeedback" style="font-size: 0.75rem; color: var(--primary-pink); margin-bottom: 10px; min-height: 15px;"></p>
+
+                <!-- Diálogo Conversacional Inteligente -->
+                <div class="ai-chat-box" id="aiChatBox">
+                    <div class="ai-chat-header">
+                        <span>🌸 Asistente Yaya</span>
+                    </div>
+                    <div class="ai-chat-text" id="aiChatText">¡Hola Yhosttin! Toca la flor o escríbeme para agregar productos, cambiar modo o facturar paso a paso.</div>
+                </div>
 
                 <div class="product-grid" id="productGrid"></div>
             </div>
@@ -945,6 +968,18 @@
         let cart = [];
         let modoVentaActual = 'detal';
 
+        // --- SISTEMA DE DIÁLOGO CONVERSACIONAL PASO A PASO ---
+        let aiState = {
+            activo: false,
+            paso: 0, // 0: libre, 1: esperando tipo doc, 2: esperando metodo de pago
+            tipoDocTemporal: 'NOTA_ENTREGA',
+            metodoTemp: 'Efectivo USD'
+        };
+
+        function decirYaya(texto) {
+            document.getElementById('aiChatText').innerText = texto;
+        }
+
         document.getElementById('storeName').value = configStore.name;
         document.getElementById('storeRif').value = configStore.rif;
         document.getElementById('storeAddress').value = configStore.address;
@@ -984,61 +1019,70 @@
             initCatalog();
         }
 
-        // --- ASISTENTE YAYA (IA Inteligente con Flor Interactiva 🌸) ---
+        // --- MOTOR INTELIGENTE DE CONVERSACIÓN ASISTENTE YAYA ---
         function procesarComandoIA(textoOrden) {
             let orden = textoOrden.toLowerCase().trim();
-            const feedback = document.getElementById('aiFeedback');
-            feedback.innerText = `🌸 Asistente Yaya procesando: "${textoOrden}"`;
 
-            // 1. Navegación
+            // 1. Si está en medio de un flujo guiado de facturación
+            if (aiState.activo) {
+                manejarFlujoFacturacion(orden);
+                return;
+            }
+
+            // 2. Navegación
             if (orden.includes('inventario') || orden.includes('ver inventario')) {
                 cambiarVista('inventario');
-                feedback.innerText = "🌸 Asistente Yaya: Abriendo sección de Inventario.";
+                decirYaya("¡Listo! Te abrí la sección de inventario.");
                 return;
             }
-            if (orden.includes('caja') || orden.includes('cierre de caja')) {
+            if (orden.includes('caja') || orden.includes('cierre')) {
                 cambiarVista('caja');
-                feedback.innerText = "🌸 Asistente Yaya: Abriendo Cierre de Caja.";
+                decirYaya("Aquí tienes el cierre de caja y turnos.");
                 return;
             }
-            if (orden.includes('libro') || orden.includes('libro de ventas')) {
+            if (orden.includes('libro')) {
                 cambiarVista('libro');
-                feedback.innerText = "🌸 Asistente Yaya: Abriendo Libro de Ventas.";
+                decirYaya("Abriendo el libro de ventas SENIAT.");
                 return;
             }
             if (orden.includes('configuración') || orden.includes('configuracion')) {
                 cambiarVista('config');
-                feedback.innerText = "🌸 Asistente Yaya: Abriendo Configuración.";
+                decirYaya("Abriendo configuración fiscal.");
                 return;
             }
-            if (orden.includes('punto de venta') || orden.includes('volver al pos') || orden.includes('catalogo')) {
+            if (orden.includes('pos') || orden.includes('catalogo') || orden.includes('volver')) {
                 cambiarVista('pos');
-                feedback.innerText = "🌸 Asistente Yaya: Abriendo Punto de Venta.";
+                decirYaya("De vuelta en el punto de venta.");
                 return;
             }
 
-            // 2. Modos de precio
-            if (orden.includes('al mayor') || orden.includes('modo mayor')) {
+            // 3. Modos de precio
+            if (orden.includes('al mayor') || orden.includes('mayor')) {
                 document.getElementById('tipoVentaSelect').value = 'mayor';
                 cambiarModoPrecio();
-                feedback.innerText = "🌸 Asistente Yaya: Cambiado a modo Al Mayor.";
+                decirYaya("¡Cambiado a modo Al Mayor!");
                 return;
             }
-            if (orden.includes('detal') || orden.includes('modo detal')) {
+            if (orden.includes('detal')) {
                 document.getElementById('tipoVentaSelect').value = 'detal';
                 cambiarModoPrecio();
-                feedback.innerText = "🌸 Asistente Yaya: Cambiado a modo Detal.";
+                decirYaya("¡Cambiado a modo Detal!");
                 return;
             }
 
-            // 3. Procesar venta
-            if (orden.includes('facturar') || orden.includes('cobrar') || orden.includes('procesar venta')) {
-                feedback.innerText = "🌸 Asistente Yaya: Procesando factura...";
-                procesarVenta();
+            // 4. Iniciar asistente de facturación guiada paso a paso
+            if (orden.includes('facturar') || orden.includes('cobrar') || orden.includes('procesar')) {
+                if (cart.length === 0) {
+                    decirYaya("⚠️ El carrito está vacío. Agrega productos primero antes de facturar.");
+                    return;
+                }
+                aiState.activo = true;
+                aiState.paso = 1;
+                decirYaya("¡Perfecto! ¿Qué deseas emitir? Dibuja o di: 'Factura fiscal' o 'Nota de entrega'.");
                 return;
             }
 
-            // 4. Agregar producto inteligente
+            // 5. Agregar producto inteligente
             let textoLimpio = orden
                 .replace(/agrega|añade|mete|al carrito|a la cesta|carrito|cesta|por favor|un|una/gi, '')
                 .trim();
@@ -1059,12 +1103,62 @@
                 for(let i = 0; i < cantidadAAgregar; i++) {
                     addToCart(prod.id);
                 }
-                feedback.innerText = `🌸 Asistente Yaya: ¡Agregado ${prod.name} al carrito!`;
+                decirYaya(`¡Listo! Agregué ${cantidadAAgregar}x ${prod.name} al carrito.`);
                 document.getElementById('searchProduct').value = '';
                 initCatalog();
             } else {
                 filtrarProductos();
-                feedback.innerText = `🌸 Asistente Yaya: Mostrando resultados para "${textoOrden}".`;
+                decirYaya(`No entendí muy bien o no hallé "${textoOrden}". ¿Quieres que agregue otro producto o prefieres facturar?`);
+            }
+        }
+
+        // Flujo conversacional guiado de cobro
+        function manejarFlujoFacturacion(orden) {
+            if (aiState.paso === 1) {
+                if (orden.includes('fiscal') || orden.includes('factura')) {
+                    aiState.tipoDocTemporal = 'FACTURA';
+                } else if (orden.includes('nota') || orden.includes('entrega')) {
+                    aiState.tipoDocTemporal = 'NOTA_ENTREGA';
+                } else {
+                    decirYaya("No te entendí. ¿Es 'Factura fiscal' o 'Nota de entrega'?");
+                    return;
+                }
+                document.getElementById('tipoDocumentoSelect').value = aiState.tipoDocTemporal;
+                renderCart();
+                aiState.paso = 2;
+                decirYaya("Excelente. ¿Cuál será la forma de pago? (Efectivo usd, efectivo bs, punto de venta, pago móvil, zelle o cashea)");
+                return;
+            }
+
+            if (aiState.paso === 2) {
+                if (orden.includes('efectivo dólar') || orden.includes('efectivo usd') || orden.includes('dolares')) {
+                    aiState.metodoTemp = 'Efectivo USD';
+                } else if (orden.includes('efectivo bs') || orden.includes('bolivares')) {
+                    aiState.metodoTemp = 'Efectivo Bs';
+                } else if (orden.includes('punto')) {
+                    aiState.metodoTemp = 'Punto de Venta';
+                } else if (orden.includes('móvil') || orden.includes('movil')) {
+                    aiState.metodoTemp = 'Pago Móvil';
+                } else if (orden.includes('zelle')) {
+                    aiState.metodoTemp = 'Zelle';
+                } else if (orden.includes('cashea')) {
+                    aiState.metodoTemp = 'Cashea';
+                } else {
+                    decirYaya("Método de pago no reconocido. Prueba diciendo: 'Efectivo usd', 'Zelle', 'Cashea', etc.");
+                    return;
+                }
+
+                document.getElementById('paymentMethod').value = aiState.metodoTemp;
+                toggleCasheaField();
+
+                aiState.activo = false;
+                aiState.paso = 0;
+                decirYaya(`¡Genial! Todo listo. Procesando ${aiState.tipoDocTemporal} con pago en ${aiState.metodoTemp}...`);
+                
+                setTimeout(() => {
+                    procesarVenta();
+                    decirYaya("¡Venta procesada con éxito! ¿Qué más hacemos hoy?");
+                }, 800);
             }
         }
 
@@ -1077,11 +1171,10 @@
             }
         });
 
-        // Reconocimiento de Voz activado por la Flor IA 🌸
+        // Reconocimiento de voz con la Flor IA 🌸
         let recognition = null;
         function toggleReconocimientoVoz() {
             const btnFlower = document.getElementById('btnFlowerAI');
-            const feedback = document.getElementById('aiFeedback');
 
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 alert("Tu navegador no soporta reconocimiento de voz. Usa Google Chrome.");
@@ -1097,7 +1190,7 @@
 
                 recognition.onstart = function() {
                     btnFlower.classList.add('listening');
-                    feedback.innerText = "🌸 Asistente Yaya escuchando... ¡Habla flor!";
+                    decirYaya("🌸 Te escucho atentamente... Habla ahora.");
                 };
 
                 recognition.onresult = function(event) {
@@ -1108,7 +1201,7 @@
 
                 recognition.onerror = function(event) {
                     btnFlower.classList.remove('listening');
-                    feedback.innerText = "❌ No se entendió el audio. Intenta de nuevo.";
+                    decirYaya("❌ No pude captar bien el audio. Intenta otra vez.");
                 };
 
                 recognition.onend = function() {
