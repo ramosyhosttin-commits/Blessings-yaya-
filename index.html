@@ -68,7 +68,6 @@
             overflow: hidden;
         }
 
-        /* Marca de agua letra B en fucsia difuminado de fondo */
         .login-box::before {
             content: 'B';
             position: absolute;
@@ -970,7 +969,7 @@
             initCatalog();
         }
 
-        // --- ASISTENTE YAYA (IA de Comandos por Texto y Voz) ---
+        // --- ASISTENTE YAYA (IA Inteligente de Comandos y Filtros) ---
         function procesarComandoIA(textoOrden) {
             let orden = textoOrden.toLowerCase().trim();
             const feedback = document.getElementById('aiFeedback');
@@ -1024,29 +1023,36 @@
                 return;
             }
 
-            // 4. Agregar producto
-            let matchAgrega = orden.match(/(?:agrega|añade|mete|buscar|busca)\s+(?:(\d+)\s+)?(.+)/i);
-            let terminoBusqueda = "";
-            let cantidadAAgregar = 1;
+            // 4. Agregar producto inteligente (Quita palabras sobrantes como "agrega", "el carrito", etc.)
+            let textoLimpio = orden
+                .replace(/agrega|añade|mete|al carrito|a la cesta|carrito|cesta|por favor|un|una/gi, '')
+                .trim();
 
-            if (matchAgrega) {
-                if (matchAgrega[1]) cantidadAAgregar = parseInt(matchAgrega[1]);
-                terminoBusqueda = matchAgrega[2].trim();
-            } else {
-                terminoBusqueda = orden;
+            let matchCantidad = orden.match(/\d+/);
+            let cantidadAAgregar = matchCantidad ? parseInt(matchCantidad[0]) : 1;
+
+            // Si quedan palabras después de limpiar, intentamos buscar el producto
+            let prod = products.find(p => String(p.id).toLowerCase() === textoLimpio || String(p.name).toLowerCase().includes(textoLimpio));
+            
+            if (!prod && textoLimpio.length > 2) {
+                // Búsqueda parcial por palabras clave
+                prod = products.find(p => {
+                    let nombreProd = p.name.toLowerCase();
+                    return textoLimpio.split(' ').some(palabra => palabra.length > 2 && nombreProd.includes(palabra));
+                });
             }
 
-            let prod = products.find(p => String(p.id).toLowerCase() === terminoBusqueda || String(p.name).toLowerCase().includes(terminoBusqueda));
-            
             if (prod) {
                 for(let i = 0; i < cantidadAAgregar; i++) {
                     addToCart(prod.id);
                 }
-                feedback.innerText = `🤖 Asistente Yaya: Agregado ${cantidadAAgregar}x ${prod.name} al carrito.`;
+                feedback.innerText = `🤖 Asistente Yaya: ¡Agregado ${prod.name} al carrito!`;
                 document.getElementById('searchProduct').value = '';
                 initCatalog();
             } else {
+                // Si no es un comando exacto ni encuentra producto, hace filtro visual normal en el catálogo
                 filtrarProductos();
+                feedback.innerText = `🤖 Asistente Yaya: Mostrando resultados para "${textoOrden}".`;
             }
         }
 
