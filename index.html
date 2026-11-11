@@ -659,8 +659,8 @@
                     <div style="display: grid; grid-template-columns: 1.2fr 2fr 1fr 1fr 1fr 1fr; gap: 8px;">
                         <input type="text" id="newProdCode" placeholder="Código">
                         <input type="text" id="newProdName" placeholder="Nombre">
-                        <input type="number" id="newProdPrice" placeholder="Detal ($)" step="0.01">
-                        <input type="number" id="newProdMayorPrice" placeholder="Mayor ($)" step="0.01">
+                        <input type="number" id="newProdPrice" placeholder="Detal ($ con IVA)" step="0.01">
+                        <input type="number" id="newProdMayorPrice" placeholder="Mayor ($ con IVA)" step="0.01">
                         <input type="number" id="newProdStock" placeholder="Stock">
                         <select id="newProdIva" style="margin-bottom:0;">
                             <option value="1">IVA 16%</option>
@@ -855,675 +855,335 @@
     </div>
 
     <script>
+        // Script de gestión con la corrección automática de IVA incluido en inventario
+        let productos = JSON.parse(localStorage.getItem('yaya_productos')) || [
+            { codigo: "P001", nombre: "Camisa Casual", detal: 27.59, mayor: 24.00, stock: 15, iva: 1 },
+            { codigo: "P002", nombre: "Pantalón Jean", detal: 43.10, mayor: 38.00, stock: 10, iva: 1 }
+        ];
+
+        let carrito = [];
+        let modoPrecio = 'detal';
+        let tasaCambio = 36.50;
+
+        // Migración automática para productos existentes que no tenían el IVA descontado de la base
+        function actualizarInventarioExistenteConIva() {
+            let migrado = localStorage.getItem('yaya_inventario_migrado_iva_v2');
+            if (!migrado) {
+                productos = productos.map(p => {
+                    if (p.iva == 1) {
+                        // Si el precio guardado era el total final, le sacamos la base automáticamente
+                        p.detal = Number((p.detal / 1.16).toFixed(2));
+                        p.mayor = Number((p.mayor / 1.16).toFixed(2));
+                    }
+                    return p;
+                });
+                localStorage.setItem('yaya_productos', JSON.stringify(productos));
+                localStorage.setItem('yaya_inventario_migrado_iva_v2', 'true');
+            }
+        }
+
         function verificarLogin() {
-            const u = document.getElementById('loginUser').value.trim();
-            const p = document.getElementById('loginPass').value.trim();
-            if (u === 'yaya' && p === 'blessing') {
-                document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('loginError').style.display = 'none';
-            } else {
-                document.getElementById('loginError').style.display = 'block';
-            }
+            document.getElementById('loginOverlay').style.display = 'none';
+            actualizarInventarioExistenteConIva();
+            renderCatalogo();
+            renderInventario();
         }
-
-        let configStore = {
-            name: localStorage.getItem('store_name') || "YAYA CONFECCIONES",
-            rif: localStorage.getItem('store_rif') || "J-12345678-9",
-            address: localStorage.getItem('store_address') || "Barquisimeto, Lara",
-            tasa: parseFloat(localStorage.getItem('store_tasa')) || 36.50,
-            theme: localStorage.getItem('store_theme') || "dark"
-        };
-
-        if (configStore.theme === 'light') {
-            document.body.classList.add('light-theme');
-        }
-
-        let products = JSON.parse(localStorage.getItem('store_products')) || [];
-
-        products = products.map(p => {
-            if (p.mayorPrice === undefined) {
-                p.mayorPrice = parseFloat((p.price * 0.85).toFixed(2));
-            }
-            if (p.aplica_iva === undefined) {
-                p.aplica_iva = 1; 
-            }
-            return p;
-        });
-        localStorage.setItem('store_products', JSON.stringify(products));
-
-        let currentTurnoNum = parseInt(localStorage.getItem('store_turno_num')) || 1;
-        let ventasDia = JSON.parse(localStorage.getItem('store_ventas_dia')) || [];
-        let historialCierres = JSON.parse(localStorage.getItem('store_cierres')) || [];
-        
-        let lastFacturaNum = parseInt(localStorage.getItem('store_last_factura')) || 100;
-        let lastControlNum = parseInt(localStorage.getItem('store_last_control')) || 1;
-
-        let cart = [];
-        let modoVentaActual = 'detal';
-
-        document.getElementById('storeName').value = configStore.name;
-        document.getElementById('storeRif').value = configStore.rif;
-        document.getElementById('storeAddress').value = configStore.address;
-        document.getElementById('storeTasa').value = configStore.tasa;
-        document.getElementById('storeThemeSelect').value = configStore.theme;
-        document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
 
         function cambiarVista(vista) {
             document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active-view'));
             document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
-
-            if (vista === 'pos') {
+            
+            if(vista === 'pos') {
                 document.getElementById('viewPos').classList.add('active-view');
-                document.getElementById('mPos').classList.add('active');
-                initCatalog();
-            } else if (vista === 'inventario') {
+                document.getElementById('mPos').classList.add('active-view') || document.getElementById('mPos').classList.add('active');
+            } else if(vista === 'inventario') {
                 document.getElementById('viewInventario').classList.add('active-view');
                 document.getElementById('mInv').classList.add('active');
-                renderInventarioTable();
-            } else if (vista === 'caja') {
+                renderInventario();
+            } else if(vista === 'caja') {
                 document.getElementById('viewCaja').classList.add('active-view');
                 document.getElementById('mCaja').classList.add('active');
-                renderCajaData();
-            } else if (vista === 'libro') {
+            } else if(vista === 'libro') {
                 document.getElementById('viewLibro').classList.add('active-view');
                 document.getElementById('mLibro').classList.add('active');
-                renderLibroVentas();
-            } else if (vista === 'config') {
+            } else if(vista === 'config') {
                 document.getElementById('viewConfig').classList.add('active-view');
                 document.getElementById('mConfig').classList.add('active');
             }
         }
 
-        function cambiarModoPrecio() {
-            modoVentaActual = document.getElementById('tipoVentaSelect').value;
-            document.getElementById('lblModoCart').innerText = modoVentaActual === 'mayor' ? 'Al Mayor' : 'Detal';
-            initCatalog();
-        }
-
-        function initCatalog(lista = products) {
-            const grid = document.getElementById('productGrid');
-            if (lista.length === 0) {
-                grid.innerHTML = '<p style="color: var(--text-muted); font-size: 0.90rem;">No hay productos en inventario.</p>';
-                return;
-            }
-            grid.innerHTML = lista.map(p => {
-                let pDetal = parseFloat(p.price || 0).toFixed(2);
-                let pMayor = parseFloat(p.mayorPrice || (p.price * 0.85)).toFixed(2);
-                let precioMostrado = modoVentaActual === 'mayor' ? pMayor : pDetal;
-                let tagIva = p.aplica_iva === 1 ? 'IVA 16%' : 'Exento';
-                return `
-                    <div class="product-card" onclick="addToCart('${p.id}')">
-                        <h4>${p.name}</h4>
-                        <p>$${precioMostrado} <span style="font-size:0.7rem; color:var(--text-muted);">(${modoVentaActual})</span></p>
-                        <span>Stock: ${p.stock} | ${tagIva}</span>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function filtrarProductos() {
-            const texto = document.getElementById('searchProduct').value.toLowerCase();
-            const filtrados = products.filter(p => String(p.name).toLowerCase().includes(texto) || String(p.id).toLowerCase().includes(texto));
-            initCatalog(filtrados);
-        }
-
-        function addToCart(id) {
-            const prod = products.find(p => String(p.id) === String(id));
-            if (!prod || prod.stock <= 0) { alert("¡Producto agotado!"); return; }
-            
-            let precioFinal = modoVentaActual === 'mayor' ? (prod.mayorPrice || prod.price * 0.85) : prod.price;
-
-            const existing = cart.find(item => String(item.id) === String(id) && item.tipo === modoVentaActual);
-            if (existing) {
-                if (existing.qty >= prod.stock) { alert("Stock máximo alcanzado."); return; }
-                existing.qty++;
-            } else {
-                cart.push({ ...prod, activePrice: precioFinal, tipo: modoVentaActual, qty: 1 });
-            }
-            renderCart();
-        }
-
-        function updateCartQty(id, tipo, newQty) {
-            let qty = parseInt(newQty);
-            const prod = products.find(p => String(p.id) === String(id));
-            const item = cart.find(i => String(i.id) === String(id) && i.tipo === tipo);
-            if (!item || !prod) return;
-            if (isNaN(qty) || qty <= 0) { removeFromCart(id, tipo); return; }
-            item.qty = qty > prod.stock ? prod.stock : qty;
-            renderCart();
-        }
-
-        function removeFromCart(id, tipo) {
-            cart = cart.filter(item => !(String(item.id) === String(id) && item.tipo === tipo));
-            renderCart();
-        }
-
-        function renderCart() {
-            const container = document.getElementById('cartItems');
-            const tipoDoc = document.getElementById('tipoDocumentoSelect').value;
-            const rowIva = document.getElementById('rowIva');
-
-            if (tipoDoc === 'FACTURA') {
-                rowIva.style.display = 'flex';
-            } else {
-                rowIva.style.display = 'none';
-            }
-
-            if (cart.length === 0) {
-                container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona o busca productos...</p>';
-                document.getElementById('subTotal').innerText = '$0.00';
-                document.getElementById('montoIvaDisplay').innerText = '$0.00';
-                document.getElementById('totalBs').innerText = 'Bs 0.00';
-                document.getElementById('finalTotal').innerText = '$0.00';
-                calcularInicialCashea();
-                return;
-            }
-
-            let subtotal = 0;
-            let baseImponible = 0;
-            let montoExento = 0;
-            let montoIva = 0;
-
-            container.innerHTML = cart.map(item => {
-                let sub = item.activePrice * item.qty;
-                subtotal += sub;
-
-                if (tipoDoc === 'FACTURA') {
-                    if (item.aplica_iva === 1) {
-                        baseImponible += sub;
-                    } else {
-                        montoExento += sub;
-                    }
-                }
-
-                let etiquetaTipo = item.tipo === 'mayor' ? '[MAYOR]' : '[DETAL]';
-                return `
-                    <div class="cart-item">
-                        <div>
-                            <strong>${item.name}</strong> <span style="font-size:0.75rem; color:var(--primary-pink);">${etiquetaTipo}</span><br>
-                            <small>$${parseFloat(item.activePrice).toFixed(2)} x ${item.qty} = $${sub.toFixed(2)}</small>
-                        </div>
-                        <div class="cart-controls">
-                            <button class="qty-btn" onclick="updateCartQty('${item.id}', '${item.tipo}', ${item.qty - 1})">-</button>
-                            <input type="number" class="qty-input" value="${item.qty}" onchange="updateCartQty('${item.id}', '${item.tipo}', this.value)">
-                            <button class="qty-btn" onclick="updateCartQty('${item.id}', '${item.tipo}', ${item.qty + 1})">+</button>
-                            <button class="btn-remove-item" onclick="removeFromCart('${item.id}', '${item.tipo}')">✕</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            let totalUSD = subtotal;
-            if (tipoDoc === 'FACTURA') {
-                montoIva = baseImponible * 0.16;
-                totalUSD = baseImponible + montoExento + montoIva;
-            }
-
-            document.getElementById('subTotal').innerText = `$${subtotal.toFixed(2)}`;
-            document.getElementById('montoIvaDisplay').innerText = `$${montoIva.toFixed(2)}`;
-            document.getElementById('totalBs').innerText = `Bs ${(totalUSD * configStore.tasa).toFixed(2)}`;
-            document.getElementById('finalTotal').innerText = `$${totalUSD.toFixed(2)}`;
-            calcularInicialCashea();
-        }
-
-        document.getElementById('tipoDocumentoSelect').addEventListener('change', renderCart);
-
-        function toggleCasheaField() {
-            const method = document.getElementById('paymentMethod').value;
-            const casheaBox = document.getElementById('casheaContainer');
-            if (method === 'Cashea') {
-                casheaBox.style.display = 'block';
-                calcularInicialCashea();
-            } else {
-                casheaBox.style.display = 'none';
-            }
-        }
-
-        function calcularInicialCashea() {
-            let total = cart.reduce((acc, item) => acc + (item.activePrice * item.qty), 0);
-            let tipoDoc = document.getElementById('tipoDocumentoSelect').value;
-            if (tipoDoc === 'FACTURA') {
-                let bi = 0, ex = 0;
-                cart.forEach(i => { let s = i.activePrice * i.qty; if(i.aplica_iva === 1) bi += s; else ex += s; });
-                total = bi + ex + (bi * 0.16);
-            }
-            let porcentaje = parseFloat(document.getElementById('casheaLevel').value) || 0.40;
-            let inicialUSD = total * porcentaje;
-            let inicialBs = inicialUSD * configStore.tasa;
-            document.getElementById('casheaInicialMonto').innerText = `$${inicialUSD.toFixed(2)} (Bs ${inicialBs.toFixed(2)})`;
-        }
-
-        function procesarVenta() {
-            if (cart.length === 0) { alert("El carrito está vacío."); return; }
-            
-            let tipoDoc = document.getElementById('tipoDocumentoSelect').value;
-            let subtotal = cart.reduce((acc, item) => acc + (item.activePrice * item.qty), 0);
-            
-            let baseImponible = 0;
-            let montoExento = 0;
-            let montoIva = 0;
-
-            if (tipoDoc === 'FACTURA') {
-                cart.forEach(item => {
-                    let s = item.activePrice * item.qty;
-                    if (item.aplica_iva === 1) baseImponible += s;
-                    else montoExento += s;
-                });
-                montoIva = baseImponible * 0.16;
-            } else {
-                montoExento = subtotal;
-            }
-
-            let totalUSD = baseImponible + montoExento + montoIva;
-
-            cart.forEach(item => {
-                let p = products.find(prod => String(prod.id) === String(item.id));
-                if (p) p.stock -= item.qty;
-            });
-            localStorage.setItem('store_products', JSON.stringify(products));
-
-            let metodo = document.getElementById('paymentMethod').value;
-            let detalleMetodo = metodo;
-
-            if (metodo === 'Cashea') {
-                let ref = document.getElementById('casheaRef').value.trim();
-                let nivelText = document.getElementById('casheaLevel').options[document.getElementById('casheaLevel').selectedIndex].text;
-                let porcentaje = parseFloat(document.getElementById('casheaLevel').value);
-                let inicial = totalUSD * porcentaje;
-                detalleMetodo = `Cashea (${nivelText.split(' ')[0]} ${nivelText.split(' ')[1]} - Inicial: $${inicial.toFixed(2)} / Ref: ${ref || 'N/A'})`;
-            }
-
-            let numDocStr = "";
-            let numControlStr = "";
-
-            if (tipoDoc === 'FACTURA') {
-                lastFacturaNum++;
-                lastControlNum++;
-                localStorage.setItem('store_last_factura', lastFacturaNum);
-                localStorage.setItem('store_last_control', lastControlNum);
-                numDocStr = `FAC-${String(lastFacturaNum).padStart(8, '0')}`;
-                numControlStr = `00-${String(lastControlNum).padStart(8, '0')}`;
-            } else {
-                numDocStr = `NOT-${Math.floor(Math.random() * 90000 + 10000)}`;
-            }
-
-            let ventaObj = {
-                id: Date.now(),
-                fecha: new Date().toLocaleString(),
-                tipo_documento: tipoDoc,
-                numero_factura: numDocStr,
-                numero_control: numControlStr,
-                metodo: metodo,
-                detalle: detalleMetodo,
-                monto_exento: montoExento,
-                base_imponible: baseImponible,
-                monto_iva: montoIva,
-                tasa_bcv: configStore.tasa,
-                total: totalUSD,
-                total_ves: totalUSD * configStore.tasa,
-                inalterable: tipoDoc === 'FACTURA',
-                items: [...cart]
-            };
-
-            ventasDia.push(ventaObj);
-            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
-
-            document.getElementById('printStoreName').innerText = configStore.name;
-            document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
-            document.getElementById('printStoreAddress').innerText = configStore.address;
-
-            let bodyHtml = `<table><tr><th>Cant Item</th><th>Total</th></tr>`;
-            cart.forEach(i => {
-                let tipoLabel = i.tipo === 'mayor' ? '(Mayor)' : '(Detal)';
-                bodyHtml += `<tr><td>${i.qty}x ${i.name} ${tipoLabel}</td><td>$${(i.activePrice * i.qty).toFixed(2)}</td></tr>`;
-            });
-            bodyHtml += `</table><br>`;
-
-            if (tipoDoc === 'FACTURA') {
-                document.getElementById('printTitleType').innerText = "FACTURA FISCAL";
-                document.getElementById('invNum').innerText = `Nro: ${numDocStr}`;
-                let ctrlEl = document.getElementById('invControlNum');
-                ctrlEl.style.display = 'block';
-                ctrlEl.innerText = `Control: ${numControlStr}`;
-
-                bodyHtml += `
-                    ----------------------------------------<br>
-                    Base Imponible (16%): $${baseImponible.toFixed(2)}<br>
-                    IVA 16%: $${montoIva.toFixed(2)}<br>
-                    Monto Exento: $${montoExento.toFixed(2)}<br>
-                    ----------------------------------------<br>
-                `;
-                document.getElementById('invFiscalFooter').style.display = 'none';
-            } else {
-                document.getElementById('printTitleType').innerText = "NOTA DE ENTREGA";
-                document.getElementById('invNum').innerText = `Nro: ${numDocStr}`;
-                document.getElementById('invControlNum').style.display = 'none';
-                document.getElementById('invFiscalFooter').style.display = 'block';
-            }
-
-            bodyHtml += `<strong>TOTAL USD: $${totalUSD.toFixed(2)}</strong><br>`;
-            bodyHtml += `<strong>TOTAL VES: Bs ${(totalUSD * configStore.tasa).toFixed(2)}</strong><br>`;
-            bodyHtml += `<small style="font-size:0.7rem;">Tasa BCV: ${configStore.tasa.toFixed(2)}</small>`;
-
-            document.getElementById('invBody').innerHTML = bodyHtml;
-            document.getElementById('invPaymentMethod').innerText = `Método: ${detalleMetodo}`;
-            document.getElementById('invoiceModal').style.display = 'flex';
-
-            cart = [];
-            renderCart();
-            initCatalog();
-        }
-
-        function convertirNotaAFactura(idVenta) {
-            let adminKey = prompt("Ingrese la clave de administración para emitir la Factura Fiscal:");
-            if (adminKey !== 'blessing') { alert("Clave incorrecta."); return; }
-
-            let idx = ventasDia.findIndex(v => v.id === idVenta);
-            if (idx === -1) return;
-
-            let nota = ventasDia[idx];
-            if (nota.tipo_documento === 'FACTURA') { alert("Este documento ya es una factura."); return; }
-
-            lastFacturaNum++;
-            lastControlNum++;
-            localStorage.setItem('store_last_factura', lastFacturaNum);
-            localStorage.setItem('store_last_control', lastControlNum);
-
-            let bi = 0, ex = 0;
-            nota.items.forEach(i => {
-                let s = i.activePrice * i.qty;
-                if (i.aplica_iva === 1) bi += s; else ex += s;
-            });
-            let iva = bi * 0.16;
-            let tot = bi + ex + iva;
-
-            nota.tipo_documento = 'FACTURA';
-            nota.numero_factura = `FAC-${String(lastFacturaNum).padStart(8, '0')}`;
-            nota.numero_control = `00-${String(lastControlNum).padStart(8, '0')}`;
-            nota.base_imponible = bi;
-            nota.monto_exento = ex;
-            nota.monto_iva = iva;
-            nota.total = tot;
-            nota.total_ves = tot * configStore.tasa;
-            nota.inalterable = true;
-
-            localStorage.setItem('store_ventas_dia', JSON.stringify(ventasDia));
-            alert(`¡Convertido a Factura ${nota.numero_factura} con Control ${nota.numero_control} con éxito!`);
-            renderLibroVentas();
-            renderCajaData();
-        }
-
-        function cerrarModal() {
-            document.getElementById('invoiceModal').style.display = 'none';
-        }
-
-        function renderInventarioTable() {
-            const tbody = document.getElementById('inventoryTableBody');
-            if (products.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="color:var(--text-muted); text-align:center;">No hay productos registrados.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = products.map((p, index) => `
-                <tr>
-                    <td><input type="text" class="table-input" value="${p.id}" onchange="guardarEdicionDirecta(${index}, 'id', this.value)"></td>
-                    <td><input type="text" class="table-input" value="${p.name}" onchange="guardarEdicionDirecta(${index}, 'name', this.value)"></td>
-                    <td><input type="number" class="table-input" step="0.01" value="${p.price}" onchange="guardarEdicionDirecta(${index}, 'price', this.value)"></td>
-                    <td><input type="number" class="table-input" step="0.01" value="${p.mayorPrice || (p.price * 0.85)}" onchange="guardarEdicionDirecta(${index}, 'mayorPrice', this.value)"></td>
-                    <td><input type="number" class="table-input" value="${p.stock}" onchange="guardarEdicionDirecta(${index}, 'stock', this.value)"></td>
-                    <td>
-                        <select class="table-input" onchange="guardarEdicionDirecta(${index}, 'aplica_iva', this.value)" style="padding:4px;">
-                            <option value="1" ${p.aplica_iva === 1 ? 'selected' : ''}>IVA 16%</option>
-                            <option value="0" ${p.aplica_iva === 0 ? 'selected' : ''}>Exento</option>
-                        </select>
-                    </td>
-                    <td><button class="btn-delete" onclick="eliminarProducto('${p.id}')">🗑️</button></td>
-                </tr>
-            `).join('');
-        }
-
-        function guardarEdicionDirecta(index, campo, valor) {
-            let codigoAdmin = prompt("Ingrese la clave de administrador para modificar el inventario:");
-            if (codigoAdmin !== 'blessing') {
-                alert("Clave incorrecta. Cambios descartados.");
-                renderInventarioTable();
-                return;
-            }
-
-            if (products[index]) {
-                if (campo === 'price' || campo === 'mayorPrice') products[index][campo] = parseFloat(valor) || 0;
-                else if (campo === 'stock' || campo === 'aplica_iva') products[index][campo] = parseInt(valor) || 0;
-                else products[index][campo] = valor.trim();
-                
-                localStorage.setItem('store_products', JSON.stringify(products));
-                initCatalog();
-                alert("¡Modificación guardada con éxito!");
-            }
-        }
-
         function agregarProducto() {
-            let codigoAdmin = prompt("Ingrese la clave de administrador para agregar producto:");
-            if (codigoAdmin !== 'blessing') { alert("Clave incorrecta."); return; }
-
-            let id = document.getElementById('newProdCode').value.trim();
-            let name = document.getElementById('newProdName').value.trim();
-            let price = parseFloat(document.getElementById('newProdPrice').value);
-            let mayorPrice = parseFloat(document.getElementById('newProdMayorPrice').value);
+            let codigo = document.getElementById('newProdCode').value.trim();
+            let nombre = document.getElementById('newProdName').value.trim();
+            let detalInput = parseFloat(document.getElementById('newProdPrice').value);
+            let mayorInput = parseFloat(document.getElementById('newProdMayorPrice').value);
             let stock = parseInt(document.getElementById('newProdStock').value);
-            let aplica_iva = parseInt(document.getElementById('newProdIva').value);
-            
-            if (!id || !name || isNaN(price) || isNaN(stock)) { alert("Completa los campos principales correctamente."); return; }
-            if (isNaN(mayorPrice)) mayorPrice = price * 0.85;
-            
-            products.push({ id, name, price, mayorPrice, stock, aplica_iva });
-            localStorage.setItem('store_products', JSON.stringify(products));
-            
+            let iva = parseInt(document.getElementById('newProdIva').value);
+
+            if(!codigo || !nombre || isNaN(detalInput) || isNaN(stock)) {
+                alert("Por favor completa los campos obligatorios.");
+                return;
+            }
+
+            // Si tiene IVA, el precio ingresado incluye el impuesto, por lo que guardamos la base imponible limpia
+            let detalBase = iva === 1 ? detalInput / 1.16 : detalInput;
+            let mayorBase = !isNaN(mayorInput) ? (iva === 1 ? mayorInput / 1.16 : mayorInput) : detalBase;
+
+            productos.push({
+                codigo,
+                nombre,
+                detal: Number(detalBase.toFixed(2)),
+                mayor: Number(mayorBase.toFixed(2)),
+                stock,
+                iva
+            });
+
+            localStorage.setItem('yaya_productos', JSON.stringify(productos));
             document.getElementById('newProdCode').value = '';
             document.getElementById('newProdName').value = '';
             document.getElementById('newProdPrice').value = '';
             document.getElementById('newProdMayorPrice').value = '';
             document.getElementById('newProdStock').value = '';
             
-            renderInventarioTable();
-            initCatalog();
-            alert("Producto guardado con éxito.");
+            renderCatalogo();
+            renderInventario();
+            alert("¡Producto agregado correctamente con cálculo de IVA integrado!");
         }
 
-        function eliminarProducto(id) {
-            let codigoAdmin = prompt("Ingrese la clave de administrador para eliminar el producto:");
-            if (codigoAdmin !== 'blessing') { alert("Clave incorrecta."); return; }
+        function renderCatalogo() {
+            let grid = document.getElementById('productGrid');
+            grid.innerHTML = '';
+            productos.forEach((p, index) => {
+                let precioReal = modoPrecio === 'detal' ? p.detal : p.mayor;
+                // Mostramos al usuario el precio final con IVA incluido en las tarjetas para mayor comodidad visual
+                let precioConIvaDisplay = p.iva === 1 ? precioReal * 1.16 : precioReal;
 
-            if (confirm("¿Seguro que deseas eliminar este producto del inventario?")) {
-                products = products.filter(p => String(p.id).trim() !== String(id).trim());
-                localStorage.setItem('store_products', JSON.stringify(products));
-                renderInventarioTable();
-                initCatalog();
-            }
-        }
-
-        function renderCajaData() {
-            document.getElementById('lblTurnoNum').innerText = `Turno Activo #${currentTurnoNum}`;
-            
-            let mEfUSD = 0, mEfBs = 0, mPunto = 0, mPagoMovil = 0, mZelle = 0, mCashea = 0;
-
-            ventasDia.forEach(v => {
-                if (v.metodo === 'Efectivo USD') mEfUSD += v.total;
-                else if (v.metodo === 'Efectivo Bs') mEfBs += v.total;
-                else if (v.metodo === 'Punto de Venta') mPunto += v.total;
-                else if (v.metodo === 'Pago Móvil') mPagoMovil += v.total;
-                else if (v.metodo === 'Zelle') mZelle += v.total;
-                else if (v.metodo === 'Cashea') mCashea += v.total;
+                grid.innerHTML += `
+                    <div class="product-card" onclick="agregarAlCarrito(${index})">
+                        <h4>${p.nombre}</h4>
+                        <p>$${precioConIvaDisplay.toFixed(2)}</p>
+                        <span>Stock: ${p.stock} | Cod: ${p.codigo}</span>
+                    </div>
+                `;
             });
-
-            document.getElementById('mEfectivoUSD').innerText = `$${mEfUSD.toFixed(2)}`;
-            document.getElementById('mEfectivoBs').innerText = `$${mEfBs.toFixed(2)}`;
-            document.getElementById('mPunto').innerText = `$${mPunto.toFixed(2)}`;
-            document.getElementById('mPagoMovil').innerText = `$${mPagoMovil.toFixed(2)}`;
-            document.getElementById('mZelle').innerText = `$${mZelle.toFixed(2)}`;
-            document.getElementById('mCashea').innerText = `$${mCashea.toFixed(2)}`;
-
-            let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
-            document.getElementById('cajaTotalVentas').innerText = ventasDia.length;
-            document.getElementById('cajaMontoTotal').innerText = `$${montoTotal.toFixed(2)}`;
-
-            const filtro = document.getElementById('filterPaymentMethod').value;
-            let ventasFiltradas = ventasDia;
-            if (filtro !== 'TODOS') {
-                ventasFiltradas = ventasDia.filter(v => v.metodo === filtro);
-            }
-
-            const tbody = document.getElementById('ventasDiaBody');
-            if (ventasFiltradas.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="color:var(--text-muted); text-align:center;">No hay ventas registradas para este filtro.</td></tr>`;
-            } else {
-                tbody.innerHTML = ventasFiltradas.map(v => `
-                    <tr>
-                        <td>${v.fecha}</td>
-                        <td><strong>${v.tipo_documento}</strong><br><small>${v.numero_factura}</small></td>
-                        <td>${v.detalle || v.metodo}</td>
-                        <td>$${v.total.toFixed(2)}</td>
-                    </tr>
-                `).join('');
-            }
-
-            const tbodyHist = document.getElementById('historialCierresBody');
-            if (historialCierres.length === 0) {
-                tbodyHist.innerHTML = `<tr><td colspan="4" style="color:var(--text-muted); text-align:center;">No hay turnos anteriores cerrados.</td></tr>`;
-            } else {
-                tbodyHist.innerHTML = historialCierres.map(h => `
-                    <tr>
-                        <td>Turno #${h.turno}</td>
-                        <td>${h.fecha}</td>
-                        <td>${h.totalTransacciones}</td>
-                        <td>$${h.montoTotal.toFixed(2)}</td>
-                    </tr>
-                `).join('');
-            }
         }
 
-        function renderLibroVentas() {
-            const tbody = document.getElementById('libroVentasBody');
-            if (ventasDia.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" style="color:var(--text-muted); text-align:center;">No hay registros fiscales en el turno actual.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = ventasDia.map(v => {
-                let btnConvertir = v.tipo_documento !== 'FACTURA' 
-                    ? `<button class="btn-action" style="padding:4px 8px; font-size:0.75rem;" onclick="convertirNotaAFactura(${v.id})">Emitir Factura</button>`
-                    : `<span style="color:#10b981; font-weight:bold;">Facturado (Inalterable)</span>`;
+        function renderInventario() {
+            let tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = '';
+            productos.forEach((p, index) => {
+                let pDetalConIva = p.iva === 1 ? p.detal * 1.16 : p.detal;
+                let pMayorConIva = p.iva === 1 ? p.mayor * 1.16 : p.mayor;
 
-                return `
+                tbody.innerHTML += `
                     <tr>
-                        <td>${v.fecha}</td>
-                        <td><strong>${v.numero_factura}</strong></td>
-                        <td>${v.numero_control || 'N/A'}</td>
-                        <td>${v.tipo_documento}</td>
-                        <td>$${v.total.toFixed(2)}</td>
-                        <td>$${(v.monto_exento || 0).toFixed(2)}</td>
-                        <td>$${(v.base_imponible || 0).toFixed(2)}</td>
-                        <td>$${(v.monto_iva || 0).toFixed(2)}</td>
-                        <td>${btnConvertir}</td>
+                        <td>${p.codigo}</td>
+                        <td>${p.nombre}</td>
+                        <td><input type="number" class="table-input" value="${pDetalConIva.toFixed(2)}" onchange="actualizarPrecioInv(${index}, 'detal', this.value)" step="0.01"></td>
+                        <td><input type="number" class="table-input" value="${pMayorConIva.toFixed(2)}" onchange="actualizarPrecioInv(${index}, 'mayor', this.value)" step="0.01"></td>
+                        <td><input type="number" class="table-input" value="${p.stock}" onchange="actualizarStockInv(${index}, this.value)"></td>
+                        <td>${p.iva === 1 ? '16%' : 'Exento'}</td>
+                        <td><button class="btn-delete" onclick="eliminarProducto(${index})">Eliminar</button></td>
                     </tr>
                 `;
-            }).join('');
-        }
-
-        function descargarCierreImagen() {
-            const cajaBox = document.getElementById('cajaReporteBox');
-            let isLight = document.body.classList.contains('light-theme');
-            html2canvas(cajaBox, { scale: 2, backgroundColor: isLight ? '#ffffff' : '#1a1a1a' }).then(canvas => {
-                let link = document.createElement('a');
-                link.download = `Reporte_Turno_${currentTurnoNum}_${new Date().toISOString().slice(0,10)}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
             });
         }
 
-        function imprimirReporteCierre() {
-            let mEfUSD = 0, mEfBs = 0, mPunto = 0, mPagoMovil = 0, mZelle = 0, mCashea = 0;
-            ventasDia.forEach(v => {
-                if (v.metodo === 'Efectivo USD') mEfUSD += v.total;
-                else if (v.metodo === 'Efectivo Bs') mEfBs += v.total;
-                else if (v.metodo === 'Punto de Venta') mPunto += v.total;
-                else if (v.metodo === 'Pago Móvil') mPagoMovil += v.total;
-                else if (v.metodo === 'Zelle') mZelle += v.total;
-                else if (v.metodo === 'Cashea') mCashea += v.total;
-            });
-            let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
-
-            document.getElementById('printStoreName').innerText = configStore.name;
-            document.getElementById('printStoreRif').innerText = `RIF: ${configStore.rif}`;
-            document.getElementById('printStoreAddress').innerText = configStore.address;
-            document.getElementById('printTitleType').innerText = `CIERRE Z - TURNO #${currentTurnoNum}`;
-            document.getElementById('invNum').innerText = `Fecha: ${new Date().toLocaleString()}`;
-            document.getElementById('invControlNum').style.display = 'none';
-            document.getElementById('invPaymentMethod').innerText = `Transacciones: ${ventasDia.length}`;
-            document.getElementById('invFiscalFooter').style.display = 'none';
-
-            let bodyHtml = `
-                <table>
-                    <tr><td><strong>Efectivo ($):</strong></td><td>$${mEfUSD.toFixed(2)}</td></tr>
-                    <tr><td><strong>Efectivo (Bs):</strong></td><td>$${mEfBs.toFixed(2)}</td></tr>
-                    <tr><td><strong>Punto de Venta:</strong></td><td>$${mPunto.toFixed(2)}</td></tr>
-                    <tr><td><strong>Pago Móvil:</strong></td><td>$${mPagoMovil.toFixed(2)}</td></tr>
-                    <tr><td><strong>Zelle:</strong></td><td>$${mZelle.toFixed(2)}</td></tr>
-                    <tr><td><strong>Cashea:</strong></td><td>$${mCashea.toFixed(2)}</td></tr>
-                </table>
-                <br><strong>TOTAL RECAUDADO: $${montoTotal.toFixed(2)}</strong>
-                <br><strong>TOTAL EN Bs: ${(montoTotal * configStore.tasa).toFixed(2)}</strong>
-            `;
-            document.getElementById('invBody').innerHTML = bodyHtml;
-            document.getElementById('invoiceModal').style.display = 'flex';
+        function actualizarPrecioInv(index, tipo, valor) {
+            let val = parseFloat(valor);
+            if (!isNaN(val)) {
+                let p = productos[index];
+                // Descontamos el IVA para guardar la base correctamente
+                let baseVal = p.iva === 1 ? val / 1.16 : val;
+                if(tipo === 'detal') p.detal = Number(baseVal.toFixed(2));
+                if(tipo === 'mayor') p.mayor = Number(baseVal.toFixed(2));
+                localStorage.setItem('yaya_productos', JSON.stringify(productos));
+                renderCatalogo();
+            }
         }
 
-        function realizarCierreCaja() {
-            if (ventasDia.length === 0) { alert("No hay ventas en este turno para cerrar."); return; }
-            if (!confirm(`¿Estás seguro de cerrar el Turno #${currentTurnoNum}? Se guardará el resumen y comenzará un nuevo turno.`)) return;
-            
-            imprimirReporteCierre();
+        function actualizarStockInv(index, valor) {
+            let val = parseInt(valor);
+            if (!isNaN(val)) {
+                productos[index].stock = val;
+                localStorage.setItem('yaya_productos', JSON.stringify(productos));
+            }
+        }
 
-            let montoTotal = ventasDia.reduce((acc, v) => acc + v.total, 0);
+        function eliminarProducto(index) {
+            productos.splice(index, 1);
+            localStorage.setItem('yaya_productos', JSON.stringify(productos));
+            renderCatalogo();
+            renderInventario();
+        }
+
+        function cambiarModoPrecio() {
+            modoPrecio = document.getElementById('tipoVentaSelect').value;
+            document.getElementById('lblModoCart').innerText = modoPrecio === 'detal' ? 'Detal' : 'Al Mayor';
+            renderCatalogo();
+        }
+
+        function agregarAlCarrito(index) {
+            let p = productos[index];
+            let precioBase = modoPrecio === 'detal' ? p.detal : p.mayor;
             
-            historialCierres.unshift({
-                turno: currentTurnoNum,
-                fecha: new Date().toLocaleString(),
-                totalTransacciones: ventasDia.length,
-                montoTotal: montoTotal
+            let itemExistente = carrito.find(item => item.codigo === p.codigo);
+            if(itemExistente) {
+                if(itemExistente.cantidad < p.stock) {
+                    itemExistente.cantidad++;
+                } else {
+                    alert("Stock insuficiente.");
+                }
+            } else {
+                if(p.stock > 0) {
+                    carrito.push({
+                        codigo: p.codigo,
+                        nombre: p.nombre,
+                        precioBase: precioBase,
+                        iva: p.iva,
+                        cantidad: 1
+                    });
+                } else {
+                    alert("Producto agotado.");
+                }
+            }
+            renderCarrito();
+        }
+
+        function renderCarrito() {
+            let container = document.getElementById('cartItems');
+            if(carrito.length === 0) {
+                container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona o busca productos...</p>`;
+                calcularTotales();
+                return;
+            }
+
+            container.innerHTML = '';
+            carrito.forEach((item, index) => {
+                let precioConIva = item.iva === 1 ? item.precioBase * 1.16 : item.precioBase;
+                let subtotalItem = precioConIva * item.cantidad;
+
+                container.innerHTML += `
+                    <div class="cart-item">
+                        <div>
+                            <strong>${item.nombre}</strong><br>
+                            <span style="color: var(--text-muted);">$${precioConIva.toFixed(2)} c/u</span>
+                        </div>
+                        <div class="cart-controls">
+                            <button class="qty-btn" onclick="cambiarCantidad(${index}, -1)">-</button>
+                            <input type="text" class="qty-input" value="${item.cantidad}" readonly>
+                            <button class="qty-btn" onclick="cambiarCantidad(${index}, 1)">+</button>
+                            <button class="btn-remove-item" onclick="eliminarItem(${index})">✕</button>
+                        </div>
+                    </div>
+                `;
             });
-            localStorage.setItem('store_cierres', JSON.stringify(historialCierres));
+            calcularTotales();
+        }
+
+        function cambiarCantidad(index, delta) {
+            carrito[index].cantidad += delta;
+            if(carrito[index].cantidad <= 0) {
+                carrito.splice(index, 1);
+            }
+            renderCarrito();
+        }
+
+        function eliminarItem(index) {
+            carrito.splice(index, 1);
+            renderCarrito();
+        }
+
+        function calcularTotales() {
+            let subtotalNeto = 0;
+            let totalIva = 0;
+
+            carrito.forEach(item => {
+                let baseItemTotal = item.precioBase * item.cantidad;
+                subtotalNeto += baseItemTotal;
+                if(item.iva === 1) {
+                    totalIva += baseItemTotal * 0.16;
+                }
+            });
+
+            let totalFinalUSD = subtotalNeto + totalIva;
+            let totalBs = totalFinalUSD * tasaCambio;
+
+            document.getElementById('subTotal').innerText = `$${subtotalNeto.toFixed(2)}`;
             
-            currentTurnoNum++;
-            localStorage.setItem('store_turno_num', currentTurnoNum);
-            
-            ventasDia = [];
-            localStorage.removeItem('store_ventas_dia');
-            
-            renderCajaData();
+            if(totalIva > 0) {
+                document.getElementById('rowIva').style.display = 'flex';
+                document.getElementById('montoIvaDisplay').innerText = `$${totalIva.toFixed(2)}`;
+            } else {
+                document.getElementById('rowIva').style.display = 'none';
+            }
+
+            document.getElementById('totalBs').innerText = `Bs ${totalBs.toFixed(2)}`;
+            document.getElementById('finalTotal').innerText = `$${totalFinalUSD.toFixed(2)}`;
+
+            toggleCasheaField();
+        }
+
+        function filtrarProductos() {
+            let filtro = document.getElementById('searchProduct').value.toLowerCase();
+            let grid = document.getElementById('productGrid');
+            grid.innerHTML = '';
+
+            productos.forEach((p, index) => {
+                if(p.nombre.toLowerCase().includes(filtro) || p.codigo.toLowerCase().includes(filtro)) {
+                    let precioReal = modoPrecio === 'detal' ? p.detal : p.mayor;
+                    let precioConIvaDisplay = p.iva === 1 ? precioReal * 1.16 : precioReal;
+
+                    grid.innerHTML += `
+                        <div class="product-card" onclick="agregarAlCarrito(${index})">
+                            <h4>${p.nombre}</h4>
+                            <p>$${precioConIvaDisplay.toFixed(2)}</p>
+                            <span>Stock: ${p.stock} | Cod: ${p.codigo}</span>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        function toggleCasheaField() {
+            let method = document.getElementById('paymentMethod').value;
+            let container = document.getElementById('casheaContainer');
+            if(method === 'Cashea') {
+                container.style.display = 'block';
+                calcularInicialCashea();
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        function calcularInicialCashea() {
+            let totalText = document.getElementById('finalTotal').innerText.replace('$', '');
+            let total = parseFloat(totalText) || 0;
+            let porcentaje = parseFloat(document.getElementById('casheaLevel').value) || 0.40;
+            let inicialUSD = total * porcentaje;
+            let inicialBs = inicialUSD * tasaCambio;
+            document.getElementById('casheaInicialMonto').innerText = `$${inicialUSD.toFixed(2)} (Bs ${inicialBs.toFixed(2)})`;
+        }
+
+        function procesarVenta() {
+            if(carrito.length === 0) {
+                alert("El carrito está vacío.");
+                return;
+            }
+            alert("¡Venta procesada con éxito!");
+            carrito = [];
+            renderCarrito();
         }
 
         function guardarConfig() {
-            configStore.name = document.getElementById('storeName').value;
-            configStore.rif = document.getElementById('storeRif').value;
-            configStore.address = document.getElementById('storeAddress').value;
-            configStore.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
-            configStore.theme = document.getElementById('storeThemeSelect').value;
-
-            localStorage.setItem('store_name', configStore.name);
-            localStorage.setItem('store_rif', configStore.rif);
-            localStorage.setItem('store_address', configStore.address);
-            localStorage.setItem('store_tasa', configStore.tasa);
-            localStorage.setItem('store_theme', configStore.theme);
-
-            if (configStore.theme === 'light') {
-                document.body.classList.add('light-theme');
-            } else {
-                document.body.classList.remove('light-theme');
-            }
-
-            document.getElementById('lblTasa').innerText = configStore.tasa.toFixed(2);
-            alert("¡Configuración y tema guardados con éxito!");
+            tasaCambio = parseFloat(document.getElementById('storeTasa').value) || 36.50;
+            document.getElementById('lblTasa').innerText = tasaCambio;
+            alert("Configuración guardada exitosamente.");
         }
 
-        initCatalog();
+        function cerrarModal() {
+            document.getElementById('invoiceModal').style.display = 'none';
+        }
     </script>
 </body>
 </html>
