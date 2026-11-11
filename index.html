@@ -659,8 +659,8 @@
                     <div style="display: grid; grid-template-columns: 1.2fr 2fr 1fr 1fr 1fr 1fr; gap: 8px;">
                         <input type="text" id="newProdCode" placeholder="Código">
                         <input type="text" id="newProdName" placeholder="Nombre">
-                        <input type="number" id="newProdPrice" placeholder="Detal ($ con IVA)" step="0.01">
-                        <input type="number" id="newProdMayorPrice" placeholder="Mayor ($ con IVA)" step="0.01">
+                        <input type="number" id="newProdPrice" placeholder="Detal ($)" step="0.01">
+                        <input type="number" id="newProdMayorPrice" placeholder="Mayor ($)" step="0.01">
                         <input type="number" id="newProdStock" placeholder="Stock">
                         <select id="newProdIva" style="margin-bottom:0;">
                             <option value="1">IVA 16%</option>
@@ -812,8 +812,12 @@
                 <input type="text" id="storeRif" placeholder="J-12345678-9">
                 <label style="color: var(--text-muted); font-size: 0.85rem;">Dirección Fiscal:</label>
                 <input type="text" id="storeAddress" placeholder="Barquisimeto, Lara">
+                
                 <label style="color: var(--text-muted); font-size: 0.85rem; margin-top: 10px; display: block;">Tasa BCV:</label>
-                <input type="number" id="storeTasa" placeholder="36.50" step="0.01">
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="storeTasa" placeholder="36.50" step="0.01" style="margin-bottom:0;">
+                    <button class="btn-action" style="width: 180px;" onclick="actualizarTasaBCV()">Actualizar Tasa</button>
+                </div>
                 
                 <label style="color: var(--text-muted); font-size: 0.85rem; margin-top: 10px; display: block;">Modo de Apariencia (Tema):</label>
                 <select id="storeThemeSelect" style="margin-bottom: 15px;">
@@ -855,7 +859,6 @@
     </div>
 
     <script>
-        // Script de gestión con la corrección automática de IVA incluido en inventario
         let productos = JSON.parse(localStorage.getItem('yaya_productos')) || [
             { codigo: "P001", nombre: "Camisa Casual", detal: 27.59, mayor: 24.00, stock: 15, iva: 1 },
             { codigo: "P002", nombre: "Pantalón Jean", detal: 43.10, mayor: 38.00, stock: 10, iva: 1 }
@@ -863,28 +866,15 @@
 
         let carrito = [];
         let modoPrecio = 'detal';
-        let tasaCambio = 36.50;
+        let tasaCambio = parseFloat(localStorage.getItem('yaya_tasa')) || 36.50;
 
-        // Migración automática para productos existentes que no tenían el IVA descontado de la base
-        function actualizarInventarioExistenteConIva() {
-            let migrado = localStorage.getItem('yaya_inventario_migrado_iva_v2');
-            if (!migrado) {
-                productos = productos.map(p => {
-                    if (p.iva == 1) {
-                        // Si el precio guardado era el total final, le sacamos la base automáticamente
-                        p.detal = Number((p.detal / 1.16).toFixed(2));
-                        p.mayor = Number((p.mayor / 1.16).toFixed(2));
-                    }
-                    return p;
-                });
-                localStorage.setItem('yaya_productos', JSON.stringify(productos));
-                localStorage.setItem('yaya_inventario_migrado_iva_v2', 'true');
-            }
-        }
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById('storeTasa').value = tasaCambio;
+            document.getElementById('lblTasa').innerText = tasaCambio;
+        });
 
         function verificarLogin() {
             document.getElementById('loginOverlay').style.display = 'none';
-            actualizarInventarioExistenteConIva();
             renderCatalogo();
             renderInventario();
         }
@@ -895,7 +885,7 @@
             
             if(vista === 'pos') {
                 document.getElementById('viewPos').classList.add('active-view');
-                document.getElementById('mPos').classList.add('active-view') || document.getElementById('mPos').classList.add('active');
+                document.getElementById('mPos').classList.add('active');
             } else if(vista === 'inventario') {
                 document.getElementById('viewInventario').classList.add('active-view');
                 document.getElementById('mInv').classList.add('active');
@@ -913,6 +903,12 @@
         }
 
         function agregarProducto() {
+            let pass = prompt("Ingresa la contraseña de seguridad para agregar productos:");
+            if (pass !== "blessing") {
+                alert("Contraseña incorrecta. Acción cancelada.");
+                return;
+            }
+
             let codigo = document.getElementById('newProdCode').value.trim();
             let nombre = document.getElementById('newProdName').value.trim();
             let detalInput = parseFloat(document.getElementById('newProdPrice').value);
@@ -925,7 +921,6 @@
                 return;
             }
 
-            // Si tiene IVA, el precio ingresado incluye el impuesto, por lo que guardamos la base imponible limpia
             let detalBase = iva === 1 ? detalInput / 1.16 : detalInput;
             let mayorBase = !isNaN(mayorInput) ? (iva === 1 ? mayorInput / 1.16 : mayorInput) : detalBase;
 
@@ -947,21 +942,20 @@
             
             renderCatalogo();
             renderInventario();
-            alert("¡Producto agregado correctamente con cálculo de IVA integrado!");
+            alert("¡Producto agregado correctamente!");
         }
 
         function renderCatalogo() {
             let grid = document.getElementById('productGrid');
             grid.innerHTML = '';
             productos.forEach((p, index) => {
-                let precioReal = modoPrecio === 'detal' ? p.detal : p.mayor;
-                // Mostramos al usuario el precio final con IVA incluido en las tarjetas para mayor comodidad visual
-                let precioConIvaDisplay = p.iva === 1 ? precioReal * 1.16 : precioReal;
+                let precioBase = modoPrecio === 'detal' ? p.detal : p.mayor;
+                let precioFinalVisual = p.iva === 1 ? precioBase * 1.16 : precioBase;
 
                 grid.innerHTML += `
                     <div class="product-card" onclick="agregarAlCarrito(${index})">
                         <h4>${p.nombre}</h4>
-                        <p>$${precioConIvaDisplay.toFixed(2)}</p>
+                        <p>$${precioFinalVisual.toFixed(2)}</p>
                         <span>Stock: ${p.stock} | Cod: ${p.codigo}</span>
                     </div>
                 `;
@@ -972,15 +966,15 @@
             let tbody = document.getElementById('inventoryTableBody');
             tbody.innerHTML = '';
             productos.forEach((p, index) => {
-                let pDetalConIva = p.iva === 1 ? p.detal * 1.16 : p.detal;
-                let pMayorConIva = p.iva === 1 ? p.mayor * 1.16 : p.mayor;
+                let pDetalVisual = p.iva === 1 ? p.detal * 1.16 : p.detal;
+                let pMayorVisual = p.iva === 1 ? p.mayor * 1.16 : p.mayor;
 
                 tbody.innerHTML += `
                     <tr>
                         <td>${p.codigo}</td>
                         <td>${p.nombre}</td>
-                        <td><input type="number" class="table-input" value="${pDetalConIva.toFixed(2)}" onchange="actualizarPrecioInv(${index}, 'detal', this.value)" step="0.01"></td>
-                        <td><input type="number" class="table-input" value="${pMayorConIva.toFixed(2)}" onchange="actualizarPrecioInv(${index}, 'mayor', this.value)" step="0.01"></td>
+                        <td><input type="number" class="table-input" value="${pDetalVisual.toFixed(2)}" onchange="actualizarPrecioInv(${index}, 'detal', this.value)" step="0.01"></td>
+                        <td><input type="number" class="table-input" value="${pMayorVisual.toFixed(2)}" onchange="actualizarPrecioInv(${index}, 'mayor', this.value)" step="0.01"></td>
                         <td><input type="number" class="table-input" value="${p.stock}" onchange="actualizarStockInv(${index}, this.value)"></td>
                         <td>${p.iva === 1 ? '16%' : 'Exento'}</td>
                         <td><button class="btn-delete" onclick="eliminarProducto(${index})">Eliminar</button></td>
@@ -990,10 +984,16 @@
         }
 
         function actualizarPrecioInv(index, tipo, valor) {
+            let pass = prompt("Ingresa la contraseña de seguridad para modificar precios:");
+            if (pass !== "blessing") {
+                alert("Contraseña incorrecta. Acción cancelada.");
+                renderInventario();
+                return;
+            }
+
             let val = parseFloat(valor);
             if (!isNaN(val)) {
                 let p = productos[index];
-                // Descontamos el IVA para guardar la base correctamente
                 let baseVal = p.iva === 1 ? val / 1.16 : val;
                 if(tipo === 'detal') p.detal = Number(baseVal.toFixed(2));
                 if(tipo === 'mayor') p.mayor = Number(baseVal.toFixed(2));
@@ -1003,6 +1003,13 @@
         }
 
         function actualizarStockInv(index, valor) {
+            let pass = prompt("Ingresa la contraseña de seguridad para modificar el stock:");
+            if (pass !== "blessing") {
+                alert("Contraseña incorrecta. Acción cancelada.");
+                renderInventario();
+                return;
+            }
+
             let val = parseInt(valor);
             if (!isNaN(val)) {
                 productos[index].stock = val;
@@ -1011,10 +1018,17 @@
         }
 
         function eliminarProducto(index) {
+            let pass = prompt("Ingresa la contraseña de seguridad para eliminar este producto:");
+            if (pass !== "blessing") {
+                alert("Contraseña incorrecta. No se ha eliminado el producto.");
+                return;
+            }
+
             productos.splice(index, 1);
             localStorage.setItem('yaya_productos', JSON.stringify(productos));
             renderCatalogo();
             renderInventario();
+            alert("Producto eliminado correctamente.");
         }
 
         function cambiarModoPrecio() {
@@ -1061,7 +1075,6 @@
             container.innerHTML = '';
             carrito.forEach((item, index) => {
                 let precioConIva = item.iva === 1 ? item.precioBase * 1.16 : item.precioBase;
-                let subtotalItem = precioConIva * item.cantidad;
 
                 container.innerHTML += `
                     <div class="cart-item">
@@ -1110,14 +1123,12 @@
             let totalBs = totalFinalUSD * tasaCambio;
 
             document.getElementById('subTotal').innerText = `$${subtotalNeto.toFixed(2)}`;
-            
             if(totalIva > 0) {
                 document.getElementById('rowIva').style.display = 'flex';
                 document.getElementById('montoIvaDisplay').innerText = `$${totalIva.toFixed(2)}`;
             } else {
                 document.getElementById('rowIva').style.display = 'none';
             }
-
             document.getElementById('totalBs').innerText = `Bs ${totalBs.toFixed(2)}`;
             document.getElementById('finalTotal').innerText = `$${totalFinalUSD.toFixed(2)}`;
 
@@ -1131,13 +1142,13 @@
 
             productos.forEach((p, index) => {
                 if(p.nombre.toLowerCase().includes(filtro) || p.codigo.toLowerCase().includes(filtro)) {
-                    let precioReal = modoPrecio === 'detal' ? p.detal : p.mayor;
-                    let precioConIvaDisplay = p.iva === 1 ? precioReal * 1.16 : precioReal;
+                    let precioBase = modoPrecio === 'detal' ? p.detal : p.mayor;
+                    let precioFinalVisual = p.iva === 1 ? precioBase * 1.16 : precioBase;
 
                     grid.innerHTML += `
                         <div class="product-card" onclick="agregarAlCarrito(${index})">
                             <h4>${p.nombre}</h4>
-                            <p>$${precioConIvaDisplay.toFixed(2)}</p>
+                            <p>$${precioFinalVisual.toFixed(2)}</p>
                             <span>Stock: ${p.stock} | Cod: ${p.codigo}</span>
                         </div>
                     `;
@@ -1175,10 +1186,22 @@
             renderCarrito();
         }
 
-        function guardarConfig() {
-            tasaCambio = parseFloat(document.getElementById('storeTasa').value) || 36.50;
+        function actualizarTasaBCV() {
+            let nuevaTasa = parseFloat(document.getElementById('storeTasa').value);
+            if(isNaN(nuevaTasa) || nuevaTasa <= 0) {
+                alert("Por favor ingresa una tasa de cambio válida.");
+                return;
+            }
+            tasaCambio = nuevaTasa;
+            localStorage.setItem('yaya_tasa', tasaCambio);
             document.getElementById('lblTasa').innerText = tasaCambio;
-            alert("Configuración guardada exitosamente.");
+            calcularTotales();
+            alert("¡Tasa del día actualizada correctamente a " + tasaCambio + "!");
+        }
+
+        function guardarConfig() {
+            actualizarTasaBCV();
+            alert("Configuración general guardada exitosamente.");
         }
 
         function cerrarModal() {
