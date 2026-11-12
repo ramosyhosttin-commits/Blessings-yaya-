@@ -67,7 +67,7 @@
         }
 
         .login-box::before {
-            content: 'B';
+            content: 'Y';
             position: absolute;
             top: 50%;
             left: 50%;
@@ -849,88 +849,460 @@
                 <div id="invFiscalFooter">
                     <p style="margin-top: 4px; font-weight: bold; font-size: 0.7rem;">Documento no válido como factura fiscal</p>
                 </div>
-                <p style="margin-top: 4px;">¡Gracias por su compra en Yaya Confecciones!</p>
+                <p style="margin-top: 4px;">¡Gracias por su compra!</p>
             </div>
             <div class="modal-buttons">
-                <button class="btn-print" onclick="window.print()">🖨️ Imprimir Ticket</button>
-                <button class="btn-close" onclick="cerrarModal()">Aceptar / Continuar</button>
+                <button class="btn-print" onclick="window.print()">Imprimir</button>
+                <button class="btn-close" onclick="cerrarModalFactura()">Cerrar</button>
             </div>
         </div>
     </div>
 
     <script>
+        // Variables Globales
         let productos = JSON.parse(localStorage.getItem('yaya_productos')) || [
-            { codigo: "P001", nombre: "Camisa Casual", detal: 27.59, mayor: 24.00, stock: 15, iva: 1 },
-            { codigo: "P002", nombre: "Pantalón Jean", detal: 43.10, mayor: 38.00, stock: 10, iva: 1 }
+            { id: '1', codigo: 'PROD-001', nombre: 'Jersey Motocross Fox Pro', precio: 35.00, mayorPrice: 28.00, stock: 15, iva: 1 },
+            { id: '2', codigo: 'PROD-002', nombre: 'Pantalón Deportivo Lycra', precio: 25.00, mayorPrice: 20.00, stock: 20, iva: 1 },
+            { id: '3', codigo: 'PROD-003', nombre: 'Gorra Trucker Bordada', precio: 12.00, mayorPrice: 9.00, stock: 30, iva: 1 },
+            { id: '4', codigo: 'PROD-004', nombre: 'Mono Casual Algodón', precio: 30.00, mayorPrice: 24.00, stock: 10, iva: 1 }
         ];
 
         let carrito = [];
-        let modoPrecio = 'detal';
-        let tasaCambio = parseFloat(localStorage.getItem('yaya_tasa')) || 36.50;
-
-        document.addEventListener("DOMContentLoaded", () => {
-            document.getElementById('storeTasa').value = tasaCambio;
-            document.getElementById('lblTasa').innerText = tasaCambio;
-            // Intentar consultar automáticamente al cargar si hay internet
-            actualizarTasaBCV(true);
-        });
+        let ventas = JSON.parse(localStorage.getItem('yaya_ventas')) || [];
+        let historialCierres = JSON.parse(localStorage.getItem('yaya_cierres')) || [];
+        let turnoActual = JSON.parse(localStorage.getItem('yaya_turno')) || { numero: 1, inicio: new Date().toLocaleString() };
+        
+        let config = JSON.parse(localStorage.getItem('yaya_config')) || {
+            nombre: 'Yaya Confecciones',
+            rif: 'J-12345678-9',
+            direccion: 'Barquisimeto, Lara',
+            tasa: 36.50,
+            theme: 'dark'
+        };
 
         function verificarLogin() {
-            document.getElementById('loginOverlay').style.display = 'none';
+            const u = document.getElementById('loginUser').value.trim();
+            const p = document.getElementById('loginPass').value.trim();
+            if((u === 'admin' && p === 'admin123') || (u === 'cajero' && p === '1234') || (u === 'yaya' && p === '2026')) {
+                document.getElementById('loginOverlay').style.display = 'none';
+                initApp();
+            } else {
+                document.getElementById('loginError').style.display = 'block';
+            }
+        }
+
+        function initApp() {
+            aplicarConfig();
             renderCatalogo();
-            renderInventario();
+            renderInventoryTable();
+            renderCajaData();
+            renderLibroVentas();
+            actualizarTasaBCVAutomatica();
+        }
+
+        function aplicarConfig() {
+            document.getElementById('storeName').value = config.nombre;
+            document.getElementById('storeRif').value = config.rif;
+            document.getElementById('storeAddress').value = config.direccion;
+            document.getElementById('storeTasa').value = config.tasa;
+            document.getElementById('storeThemeSelect').value = config.theme;
+            document.getElementById('lblTasa').innerText = config.tasa;
+
+            if(config.theme === 'light') {
+                document.body.classList.add('light-theme');
+            } else {
+                document.body.classList.remove('light-theme');
+            }
+        }
+
+        function guardarConfig() {
+            config.nombre = document.getElementById('storeName').value;
+            config.rif = document.getElementById('storeRif').value;
+            config.direccion = document.getElementById('storeAddress').value;
+            config.tasa = parseFloat(document.getElementById('storeTasa').value) || 36.50;
+            config.theme = document.getElementById('storeThemeSelect').value;
+
+            localStorage.setItem('yaya_config', JSON.stringify(config));
+            aplicarConfig();
+            calcularTotales();
+            alert('¡Configuración guardada con éxito!');
+        }
+
+        async function actualizarTasaBCV() {
+            try {
+                let res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar/enparalelo');
+                let data = await res.json();
+                if(data && data.price) {
+                    document.getElementById('storeTasa').value = data.price;
+                    guardarConfig();
+                }
+            } catch (e) {
+                alert('No se pudo conectar con la API del BCV. Se mantiene la tasa actual.');
+            }
+        }
+
+        async function actualizarTasaBCVAutomatica() {
+            try {
+                let res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar/enparalelo');
+                let data = await res.json();
+                if(data && data.price && !localStorage.getItem('yaya_config')) {
+                    config.tasa = data.price;
+                    document.getElementById('storeTasa').value = config.tasa;
+                    document.getElementById('lblTasa').innerText = config.tasa;
+                }
+            } catch(e) {}
         }
 
         function cambiarVista(vista) {
             document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active-view'));
             document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
-            
+
             if(vista === 'pos') {
                 document.getElementById('viewPos').classList.add('active-view');
                 document.getElementById('mPos').classList.add('active');
             } else if(vista === 'inventario') {
                 document.getElementById('viewInventario').classList.add('active-view');
                 document.getElementById('mInv').classList.add('active');
-                renderInventario();
+                renderInventoryTable();
             } else if(vista === 'caja') {
                 document.getElementById('viewCaja').classList.add('active-view');
                 document.getElementById('mCaja').classList.add('active');
+                renderCajaData();
             } else if(vista === 'libro') {
                 document.getElementById('viewLibro').classList.add('active-view');
                 document.getElementById('mLibro').classList.add('active');
+                renderLibroVentas();
             } else if(vista === 'config') {
                 document.getElementById('viewConfig').classList.add('active-view');
                 document.getElementById('mConfig').classList.add('active');
             }
         }
 
-        function agregarProducto() {
-            let pass = prompt("Ingresa la contraseña de seguridad para agregar productos:");
-            if (pass !== "blessing") {
-                alert("Contraseña incorrecta. Acción cancelada.");
+        // Catálogo POS
+        function renderCatalogo(filtro = '') {
+            const grid = document.getElementById('productGrid');
+            grid.innerHTML = '';
+
+            const modo = document.getElementById('tipoVentaSelect').value;
+            let filtrados = productos.filter(p => p.nombre.toLowerCase().includes(filtro.toLowerCase()) || p.codigo.toLowerCase().includes(filtro.toLowerCase()));
+
+            if(filtrados.length === 0) {
+                grid.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No se encontraron productos.</p>';
                 return;
             }
 
+            filtrados.forEach(p => {
+                const precioMostrar = modo === 'mayor' ? (p.mayorPrice || p.precio) : p.precio;
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.onclick = () => agregarAlCarrito(p.id);
+                card.innerHTML = `
+                    <h4>${p.nombre}</h4>
+                    <p>$${precioMostrar.toFixed(2)}</p>
+                    <span>Stock: ${p.stock} | ${p.codigo}</span>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function filtrarProductos() {
+            let texto = document.getElementById('searchProduct').value;
+            renderCatalogo(texto);
+        }
+
+        function cambiarModoPrecio() {
+            const modo = document.getElementById('tipoVentaSelect').value;
+            document.getElementById('lblModoCart').innerText = modo === 'mayor' ? 'Al Mayor' : 'Detal';
+            
+            // Recalcular precios en el carrito actual según el modo
+            carrito.forEach(item => {
+                let pObj = productos.find(p => p.id === item.id);
+                if(pObj) {
+                    item.precio = modo === 'mayor' ? (pObj.mayorPrice || pObj.precio) : pObj.precio;
+                }
+            });
+            renderCarrito();
+            renderCatalogo(document.getElementById('searchProduct').value);
+        }
+
+        // Carrito
+        function agregarAlCarrito(id) {
+            let prod = productos.find(p => p.id === id);
+            if(!prod || prod.stock <= 0) {
+                alert('Producto sin stock disponible.');
+                return;
+            }
+
+            const modo = document.getElementById('tipoVentaSelect').value;
+            const precioUsar = modo === 'mayor' ? (prod.mayorPrice || prod.precio) : prod.precio;
+
+            let itemEnCarrito = carrito.find(i => i.id === id);
+            if(itemEnCarrito) {
+                if(itemEnCarrito.cantidad < prod.stock) {
+                    itemEnCarrito.cantidad++;
+                } else {
+                    alert('Stock máximo alcanzado.');
+                }
+            } else {
+                carrito.push({
+                    id: prod.id,
+                    codigo: prod.codigo,
+                    nombre: prod.nombre,
+                    precio: precioUsar,
+                    cantidad: 1,
+                    iva: prod.iva
+                });
+            }
+            renderCarrito();
+        }
+
+        function cambiarCantidad(id, delta) {
+            let item = carrito.find(i => i.id === id);
+            let prod = productos.find(p => p.id === id);
+            if(item) {
+                let nuevaCant = item.cantidad + delta;
+                if(nuevaCant > 0 && nuevaCant <= prod.stock) {
+                    item.cantidad = nuevaCant;
+                } else if(nuevaCant <= 0) {
+                    carrito = carrito.filter(i => i.id !== id);
+                } else {
+                    alert('Stock insuficiente.');
+                }
+            }
+            renderCarrito();
+        }
+
+        function cambiarCantidadManual(id, val) {
+            let item = carrito.find(i => i.id === id);
+            let prod = productos.find(p => p.id === id);
+            let cant = parseInt(val) || 1;
+            if(item && prod) {
+                if(cant > 0 && cant <= prod.stock) {
+                    item.cantidad = cant;
+                } else if(cant > prod.stock) {
+                    item.cantidad = prod.stock;
+                    alert('Cantidad ajustada al stock máximo.');
+                }
+            }
+            renderCarrito();
+        }
+
+        function eliminarItemCarrito(id) {
+            carrito = carrito.filter(i => i.id !== id);
+            renderCarrito();
+        }
+
+        function renderCarrito() {
+            const container = document.getElementById('cartItems');
+            if(carrito.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona o busca productos...</p>';
+                calcularTotales();
+                return;
+            }
+
+            container.innerHTML = '';
+            carrito.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'cart-item';
+                div.innerHTML = `
+                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis;">
+                        <strong>${item.nombre}</strong><br>
+                        <span style="color: var(--primary-pink);">$${item.precio.toFixed(2)} c/u</span>
+                    </div>
+                    <div class="cart-controls">
+                        <button class="qty-btn" onclick="cambiarCantidad('${item.id}', -1)">-</button>
+                        <input type="number" class="qty-input" value="${item.cantidad}" onchange="cambiarCantidadManual('${item.id}', this.value)">
+                        <button class="qty-btn" onclick="cambiarCantidad('${item.id}', 1)">+</button>
+                        <button class="btn-remove-item" onclick="eliminarItemCarrito('${item.id}')">×</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            calcularTotales();
+        }
+
+        function calcularTotales() {
+            let subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+            let tipoDoc = document.getElementById('tipoDocumentoSelect').value;
+            
+            let montoIva = 0;
+            if(tipoDoc === 'FACTURA') {
+                document.getElementById('rowIva').style.display = 'flex';
+                // Calcular IVA 16% sobre los productos gravados
+                let baseImponibleIVA = carrito.filter(i => i.iva === 1).reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
+                montoIva = baseImponibleIVA * 0.16;
+            } else {
+                document.getElementById('rowIva').style.display = 'none';
+            }
+
+            let totalUSD = subtotal + montoIva;
+            let totalBs = totalUSD * config.tasa;
+
+            document.getElementById('subTotal').innerText = `$${subtotal.toFixed(2)}`;
+            document.getElementById('montoIvaDisplay').innerText = `$${montoIva.toFixed(2)}`;
+            document.getElementById('totalBs').innerText = `Bs ${totalBs.toFixed(2)}`;
+            document.getElementById('finalTotal').innerText = `$${totalUSD.toFixed(2)}`;
+
+            if(document.getElementById('paymentMethod').value === 'Cashea') {
+                calcularInicialCashea();
+            }
+        }
+
+        function toggleCasheaField() {
+            const metodo = document.getElementById('paymentMethod').value;
+            document.getElementById('casheaContainer').style.display = metodo === 'Cashea' ? 'block' : 'none';
+            if(metodo === 'Cashea') calcularInicialCashea();
+        }
+
+        function calcularInicialCashea() {
+            let totalUSD = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+            let tipoDoc = document.getElementById('tipoDocumentoSelect').value;
+            if(tipoDoc === 'FACTURA') {
+                let baseImponibleIVA = carrito.filter(i => i.iva === 1).reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
+                totalUSD += baseImponibleIVA * 0.16;
+            }
+
+            let porcInicial = parseFloat(document.getElementById('casheaLevel').value) || 0.40;
+            let inicialUSD = totalUSD * porcInicial;
+            let inicialBs = inicialUSD * config.tasa;
+            document.getElementById('casheaInicialMonto').innerText = `$${inicialUSD.toFixed(2)} (Bs ${inicialBs.toFixed(2)})`;
+        }
+
+        // Procesar Venta y Facturar
+        function procesarVenta() {
+            if(carrito.length === 0) {
+                alert('El carrito está vacío.');
+                return;
+            }
+
+            let subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+            let tipoDoc = document.getElementById('tipoDocumentoSelect').value;
+            let montoIva = 0;
+            let exento = 0;
+            let baseImponible = 0;
+
+            carrito.forEach(item => {
+                let itemTotal = item.precio * item.cantidad;
+                if(item.iva === 1) {
+                    baseImponible += itemTotal;
+                } else {
+                    exento += itemTotal;
+                }
+            });
+
+            if(tipoDoc === 'FACTURA') {
+                montoIva = baseImponible * 0.16;
+            }
+
+            let totalUSD = subtotal + montoIva;
+            let metodo = document.getElementById('paymentMethod').value;
+
+            // Descontar stock
+            carrito.forEach(item => {
+                let prod = productos.find(p => p.id === item.id);
+                if(prod) {
+                    prod.stock -= item.cantidad;
+                }
+            });
+            localStorage.setItem('yaya_productos', JSON.stringify(productos));
+
+            // Registrar Venta
+            let numDoc = 'DOC-' + Math.floor(100000 + Math.random() * 900000);
+            let numControl = tipoDoc === 'FACTURA' ? '00-' + Math.floor(10000000 + Math.random() * 90000000) : '';
+            
+            let nuevaVenta = {
+                id: Date.now(),
+                fecha: new Date().toLocaleString(),
+                tipo: tipoDoc,
+                documento: numDoc,
+                control: numControl,
+                metodo: metodo,
+                items: [...carrito],
+                subtotal: subtotal,
+                exento: exento,
+                baseImponible: baseImponible,
+                iva: montoIva,
+                total: totalUSD,
+                turno: turnoActual.numero
+            };
+
+            ventas.push(nuevaVenta);
+            localStorage.setItem('yaya_ventas', JSON.stringify(ventas));
+
+            // Mostrar Modal Comprobante
+            mostrarComprobante(nuevaVenta);
+
+            // Limpiar carrito
+            carrito = [];
+            renderCarrito();
+            renderCatalogo();
+            renderInventoryTable();
+        }
+
+        function mostrarComprobante(v) {
+            document.getElementById('printStoreName').innerText = config.nombre.toUpperCase();
+            document.getElementById('printStoreRif').innerText = `RIF: ${config.rif}`;
+            document.getElementById('printStoreAddress').innerText = config.direccion;
+
+            let titleType = v.tipo === 'FACTURA' ? 'FACTURA FISCAL' : 'NOTA DE ENTREGA';
+            document.getElementById('printTitleType').innerText = titleType;
+            document.getElementById('invNum').innerText = `Nro: ${v.documento}`;
+            
+            const ctrlEl = document.getElementById('invControlNum');
+            if(v.tipo === 'FACTURA') {
+                ctrlEl.style.display = 'block';
+                ctrlEl.innerText = `Control: ${v.control}`;
+                document.getElementById('invFiscalFooter').style.display = 'block';
+            } else {
+                ctrlEl.style.display = 'none';
+                document.getElementById('invFiscalFooter').style.display = 'block';
+            }
+
+            let bodyHtml = `<p>Fecha: ${v.fecha}</p><p>----------------------------------------</p>`;
+            bodyHtml += `<table style="width:100%; font-size:0.8rem;"><tr><th>Cant</th><th>Desc</th><th>Total</th></tr>`;
+            v.items.forEach(i => {
+                bodyHtml += `<tr><td>${i.cantidad}</td><td>${i.nombre}</td><td>$${(i.precio * i.cantidad).toFixed(2)}</td></tr>`;
+            });
+            bodyHtml += `</table><p>----------------------------------------</p>`;
+            bodyHtml += `<div style="text-align: right;">`;
+            if(v.tipo === 'FACTURA') {
+                bodyHtml += `<p>Subtotal: $${v.subtotal.toFixed(2)}</p>`;
+                bodyHtml += `<p>Base Imp (16%): $${v.baseImponible.toFixed(2)}</p>`;
+                bodyHtml += `<p>IVA 16%: $${v.iva.toFixed(2)}</p>`;
+            }
+            bodyHtml += `<p><strong>TOTAL: $${v.total.toFixed(2)}</strong></p>`;
+            bodyHtml += `<p><strong>Total Bs: Bs ${(v.total * config.tasa).toFixed(2)}</strong></p>`;
+            bodyHtml += `</div>`;
+
+            document.getElementById('invBody').innerHTML = bodyHtml;
+            document.getElementById('invPaymentMethod').innerText = `Método de Pago: ${v.metodo}`;
+            document.getElementById('invoiceModal').style.display = 'flex';
+        }
+
+        function cerrarModalFactura() {
+            document.getElementById('invoiceModal').style.display = 'none';
+        }
+
+        // Gestión de Inventario con Edición Segura (Persistente)
+        function agregarProducto() {
             let codigo = document.getElementById('newProdCode').value.trim();
             let nombre = document.getElementById('newProdName').value.trim();
-            let detalInput = parseFloat(document.getElementById('newProdPrice').value);
-            let mayorInput = parseFloat(document.getElementById('newProdMayorPrice').value);
+            let precio = parseFloat(document.getElementById('newProdPrice').value);
+            let mayorPrice = parseFloat(document.getElementById('newProdMayorPrice').value);
             let stock = parseInt(document.getElementById('newProdStock').value);
             let iva = parseInt(document.getElementById('newProdIva').value);
 
-            if(!codigo || !nombre || isNaN(detalInput) || isNaN(stock)) {
-                alert("Por favor completa los campos obligatorios.");
+            if(!codigo || !nombre || isNaN(precio) || isNaN(stock)) {
+                alert('Por favor completa todos los campos obligatorios.');
                 return;
             }
 
-            let detalBase = iva === 1 ? detalInput / 1.16 : detalInput;
-            let mayorBase = !isNaN(mayorInput) ? (iva === 1 ? mayorInput / 1.16 : mayorInput) : detalBase;
-
             productos.push({
+                id: Date.now().toString(),
                 codigo,
                 nombre,
-                detal: Number(detalBase.toFixed(2)),
-                mayor: Number(mayorBase.toFixed(2)),
+                precio,
+                mayorPrice: isNaN(mayorPrice) ? precio * 0.8 : mayorPrice,
                 stock,
                 iva
             });
@@ -941,296 +1313,184 @@
             document.getElementById('newProdPrice').value = '';
             document.getElementById('newProdMayorPrice').value = '';
             document.getElementById('newProdStock').value = '';
-            
+
+            renderInventoryTable();
             renderCatalogo();
-            renderInventario();
-            alert("¡Producto agregado correctamente!");
+            alert('¡Producto agregado con éxito!');
         }
 
-        function renderCatalogo() {
-            let grid = document.getElementById('productGrid');
-            grid.innerHTML = '';
-            productos.forEach((p, index) => {
-                let precioBase = modoPrecio === 'detal' ? p.detal : p.mayor;
-                let precioFinalVisual = p.iva === 1 ? precioBase * 1.16 : precioBase;
-
-                grid.innerHTML += `
-                    <div class="product-card" onclick="agregarAlCarrito(${index})">
-                        <h4>${p.nombre}</h4>
-                        <p>$${precioFinalVisual.toFixed(2)}</p>
-                        <span>Stock: ${p.stock} | Cod: ${p.codigo}</span>
-                    </div>
-                `;
-            });
-        }
-
-        function renderInventario() {
-            let tbody = document.getElementById('inventoryTableBody');
+        function renderInventoryTable() {
+            const tbody = document.getElementById('inventoryTableBody');
             tbody.innerHTML = '';
-            productos.forEach((p, index) => {
-                let pDetalVisual = p.iva === 1 ? p.detal * 1.16 : p.detal;
-                let pMayorVisual = p.iva === 1 ? p.mayor * 1.16 : p.mayor;
 
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${p.codigo}</td>
-                        <td>${p.nombre}</td>
-                        <td><input type="number" class="table-input" value="${pDetalVisual.toFixed(2)}" onchange="actualizarPrecioInv(${index}, 'detal', this.value)" step="0.01"></td>
-                        <td><input type="number" class="table-input" value="${pMayorVisual.toFixed(2)}" onchange="actualizarPrecioInv(${index}, 'mayor', this.value)" step="0.01"></td>
-                        <td><input type="number" class="table-input" value="${p.stock}" onchange="actualizarStockInv(${index}, this.value)"></td>
-                        <td>${p.iva === 1 ? '16%' : 'Exento'}</td>
-                        <td><button class="btn-delete" onclick="eliminarProducto(${index})">Eliminar</button></td>
-                    </tr>
+            productos.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" class="table-input" value="${p.codigo}" onchange="actualizarDatoProducto('${p.id}', 'codigo', this.value)"></td>
+                    <td><input type="text" class="table-input" value="${p.nombre}" onchange="actualizarDatoProducto('${p.id}', 'nombre', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${p.precio}" step="0.01" onchange="actualizarDatoProducto('${p.id}', 'precio', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${p.mayorPrice || p.precio}" step="0.01" onchange="actualizarDatoProducto('${p.id}', 'mayorPrice', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${p.stock}" onchange="actualizarDatoProducto('${p.id}', 'stock', this.value)"></td>
+                    <td>
+                        <select class="table-input" onchange="actualizarDatoProducto('${p.id}', 'iva', this.value)">
+                            <option value="1" ${p.iva === 1 ? 'selected' : ''}>IVA 16%</option>
+                            <option value="0" ${p.iva === 0 ? 'selected' : ''}>Exento</option>
+                        </select>
+                    </td>
+                    <td><button class="btn-delete" onclick="eliminarProducto('${p.id}')">Eliminar</button></td>
                 `;
+                tbody.appendChild(tr);
             });
         }
 
-        function actualizarPrecioInv(index, tipo, valor) {
-            let pass = prompt("Ingresa la contraseña de seguridad para modificar precios:");
-            if (pass !== "blessing") {
-                alert("Contraseña incorrecta. Acción cancelada.");
-                renderInventario();
-                return;
-            }
-
-            let val = parseFloat(valor);
-            if (!isNaN(val)) {
-                let p = productos[index];
-                let baseVal = p.iva === 1 ? val / 1.16 : val;
-                if(tipo === 'detal') p.detal = Number(baseVal.toFixed(2));
-                if(tipo === 'mayor') p.mayor = Number(baseVal.toFixed(2));
+        function actualizarDatoProducto(id, campo, valor) {
+            let prod = productos.find(p => p.id === id);
+            if(prod) {
+                if(campo === 'precio' || campo === 'mayorPrice' || campo === 'stock' || campo === 'iva') {
+                    prod[campo] = parseFloat(valor) || 0;
+                } else {
+                    prod[campo] = valor;
+                }
+                // Guardado inmediato y seguro en localStorage
                 localStorage.setItem('yaya_productos', JSON.stringify(productos));
                 renderCatalogo();
             }
         }
 
-        function actualizarStockInv(index, valor) {
-            let pass = prompt("Ingresa la contraseña de seguridad para modificar el stock:");
-            if (pass !== "blessing") {
-                alert("Contraseña incorrecta. Acción cancelada.");
-                renderInventario();
-                return;
-            }
-
-            let val = parseInt(valor);
-            if (!isNaN(val)) {
-                productos[index].stock = val;
+        function eliminarProducto(id) {
+            if(confirm('¿Estás seguro de eliminar este producto del inventario?')) {
+                productos = productos.filter(p => p.id !== id);
                 localStorage.setItem('yaya_productos', JSON.stringify(productos));
+                renderInventoryTable();
+                renderCatalogo();
             }
         }
 
-        function eliminarProducto(index) {
-            let pass = prompt("Ingresa la contraseña de seguridad para eliminar este producto:");
-            if (pass !== "blessing") {
-                alert("Contraseña incorrecta. No se ha eliminado el producto.");
-                return;
-            }
-
-            productos.splice(index, 1);
-            localStorage.setItem('yaya_productos', JSON.stringify(productos));
-            renderCatalogo();
-            renderInventario();
-            alert("Producto eliminado correctamente.");
-        }
-
-        function cambiarModoPrecio() {
-            modoPrecio = document.getElementById('tipoVentaSelect').value;
-            document.getElementById('lblModoCart').innerText = modoPrecio === 'detal' ? 'Detal' : 'Al Mayor';
-            renderCatalogo();
-        }
-
-        function agregarAlCarrito(index) {
-            let p = productos[index];
-            let precioBase = modoPrecio === 'detal' ? p.detal : p.mayor;
+        // Cierre de Caja y Turnos
+        function renderCajaData() {
+            document.getElementById('lblTurnoNum').innerText = `Turno Activo #${turnoActual.numero} (Iniciado: ${turnoActual.inicio})`;
             
-            let itemExistente = carrito.find(item => item.codigo === p.codigo);
-            if(itemExistente) {
-                if(itemExistente.cantidad < p.stock) {
-                    itemExistente.cantidad++;
-                } else {
-                    alert("Stock insuficiente.");
+            let ventasTurno = ventas.filter(v => v.turno === turnoActual.numero);
+            let filtroMetodo = document.getElementById('filterPaymentMethod').value;
+            let ventasFiltradas = filtroMetodo === 'TODOS' ? ventasTurno : ventasTurno.filter(v => v.metodo === filtroMetodo);
+
+            let totals = { 'Efectivo USD': 0, 'Efectivo Bs': 0, 'Punto de Venta': 0, 'Pago Móvil': 0, 'Zelle': 0, 'Cashea': 0 };
+            let montoTotalGlobal = 0;
+
+            ventasTurno.forEach(v => {
+                if(totals[v.metodo] !== undefined) {
+                    totals[v.metodo] += v.total;
                 }
-            } else {
-                if(p.stock > 0) {
-                    carrito.push({
-                        codigo: p.codigo,
-                        nombre: p.nombre,
-                        precioBase: precioBase,
-                        iva: p.iva,
-                        cantidad: 1
-                    });
-                } else {
-                    alert("Producto agotado.");
-                }
-            }
-            renderCarrito();
-        }
+                montoTotalGlobal += v.total;
+            });
 
-        function renderCarrito() {
-            let container = document.getElementById('cartItems');
-            if(carrito.length === 0) {
-                container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona o busca productos...</p>`;
-                calcularTotales();
-                return;
-            }
+            document.getElementById('mEfectivoUSD').innerText = `$${totals['Efectivo USD'].toFixed(2)}`;
+            document.getElementById('mEfectivoBs').innerText = `Bs ${(totals['Efectivo Bs'] * config.tasa).toFixed(2)}`;
+            document.getElementById('mPunto').innerText = `$${totals['Punto de Venta'].toFixed(2)}`;
+            document.getElementById('mPagoMovil').innerText = `$${totals['Pago Móvil'].toFixed(2)}`;
+            document.getElementById('mZelle').innerText = `$${totals['Zelle'].toFixed(2)}`;
+            document.getElementById('mCashea').innerText = `$${totals['Cashea'].toFixed(2)}`;
 
-            container.innerHTML = '';
-            carrito.forEach((item, index) => {
-                let precioConIva = item.iva === 1 ? item.precioBase * 1.16 : item.precioBase;
+            document.getElementById('cajaTotalVentas').innerText = ventasTurno.length;
+            document.getElementById('cajaMontoTotal').innerText = `$${montoTotalGlobal.toFixed(2)}`;
 
-                container.innerHTML += `
-                    <div class="cart-item">
-                        <div>
-                            <strong>${item.nombre}</strong><br>
-                            <span style="color: var(--text-muted);">$${precioConIva.toFixed(2)} c/u</span>
-                        </div>
-                        <div class="cart-controls">
-                            <button class="qty-btn" onclick="cambiarCantidad(${index}, -1)">-</button>
-                            <input type="text" class="qty-input" value="${item.cantidad}" readonly>
-                            <button class="qty-btn" onclick="cambiarCantidad(${index}, 1)">+</button>
-                            <button class="btn-remove-item" onclick="eliminarItem(${index})">✕</button>
-                        </div>
-                    </div>
+            const tbody = document.getElementById('ventasDiaBody');
+            tbody.innerHTML = '';
+            ventasFiltradas.forEach(v => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${v.fecha}</td>
+                    <td>${v.tipo === 'FACTURA' ? 'Factura' : 'Nota'} (${v.documento})</td>
+                    <td>${v.metodo}</td>
+                    <td>$${v.total.toFixed(2)}</td>
                 `;
-            });
-            calcularTotales();
-        }
-
-        function cambiarCantidad(index, delta) {
-            carrito[index].cantidad += delta;
-            if(carrito[index].cantidad <= 0) {
-                carrito.splice(index, 1);
-            }
-            renderCarrito();
-        }
-
-        function eliminarItem(index) {
-            carrito.splice(index, 1);
-            renderCarrito();
-        }
-
-        function calcularTotales() {
-            let subtotalNeto = 0;
-            let totalIva = 0;
-
-            carrito.forEach(item => {
-                let baseItemTotal = item.precioBase * item.cantidad;
-                subtotalNeto += baseItemTotal;
-                if(item.iva === 1) {
-                    totalIva += baseItemTotal * 0.16;
-                }
+                tbody.appendChild(tr);
             });
 
-            let totalFinalUSD = subtotalNeto + totalIva;
-            let totalBs = totalFinalUSD * tasaCambio;
-
-            document.getElementById('subTotal').innerText = `$${subtotalNeto.toFixed(2)}`;
-            if(totalIva > 0) {
-                document.getElementById('rowIva').style.display = 'flex';
-                document.getElementById('montoIvaDisplay').innerText = `$${totalIva.toFixed(2)}`;
-            } else {
-                document.getElementById('rowIva').style.display = 'none';
-            }
-            document.getElementById('totalBs').innerText = `Bs ${totalBs.toFixed(2)}`;
-            document.getElementById('finalTotal').innerText = `$${totalFinalUSD.toFixed(2)}`;
-
-            toggleCasheaField();
-        }
-
-        function filtrarProductos() {
-            let filtro = document.getElementById('searchProduct').value.toLowerCase();
-            let grid = document.getElementById('productGrid');
-            grid.innerHTML = '';
-
-            productos.forEach((p, index) => {
-                if(p.nombre.toLowerCase().includes(filtro) || p.codigo.toLowerCase().includes(filtro)) {
-                    let precioBase = modoPrecio === 'detal' ? p.detal : p.mayor;
-                    let precioFinalVisual = p.iva === 1 ? precioBase * 1.16 : precioBase;
-
-                    grid.innerHTML += `
-                        <div class="product-card" onclick="agregarAlCarrito(${index})">
-                            <h4>${p.nombre}</h4>
-                            <p>$${precioFinalVisual.toFixed(2)}</p>
-                            <span>Stock: ${p.stock} | Cod: ${p.codigo}</span>
-                        </div>
-                    `;
-                }
+            // Renderizar Historial Cierres Z
+            const histBody = document.getElementById('historialCierresBody');
+            histBody.innerHTML = '';
+            historialCierres.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>Cierre Turno #${c.turno}</td>
+                    <td>${c.fechaCierre}</td>
+                    <td>${c.transacciones}</td>
+                    <td>$${c.totalRecaudado.toFixed(2)}</td>
+                `;
+                histBody.appendChild(tr);
             });
         }
 
-        function toggleCasheaField() {
-            let method = document.getElementById('paymentMethod').value;
-            let container = document.getElementById('casheaContainer');
-            if(method === 'Cashea') {
-                container.style.display = 'block';
-                calcularInicialCashea();
-            } else {
-                container.style.display = 'none';
+        function realizarCierreCaja() {
+            let ventasTurno = ventas.filter(v => v.turno === turnoActual.numero);
+            let totalRecaudado = ventasTurno.reduce((acc, v) => acc + v.total, 0);
+
+            let cierreObj = {
+                turno: turnoActual.numero,
+                fechaInicio: turnoActual.inicio,
+                fechaCierre: new Date().toLocaleString(),
+                transacciones: ventasTurno.length,
+                totalRecaudado: totalRecaudado
+            };
+
+            historialCierres.push(cierreObj);
+            localStorage.setItem('yaya_cierres', JSON.stringify(historialCierres));
+
+            turnoActual = { numero: turnoActual.numero + 1, inicio: new Date().toLocaleString() };
+            localStorage.setItem('yaya_turno', JSON.stringify(turnoActual));
+
+            renderCajaData();
+            alert('¡Turno cerrado con éxito! Se ha iniciado un nuevo turno de caja.');
+        }
+
+        function descargarCierreImagen() {
+            const box = document.getElementById('cajaReporteBox');
+            html2canvas(box).then(canvas => {
+                let link = document.createElement('a');
+                link.download = `Cierre_Turno_${turnoActual.numero}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+
+        function imprimirReporteCierre() {
+            window.print();
+        }
+
+        // Libro de Ventas SENIAT
+        function renderLibroVentas() {
+            const tbody = document.getElementById('libroVentasBody');
+            tbody.innerHTML = '';
+
+            ventas.forEach(v => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${v.fecha}</td>
+                    <td>${v.documento}</td>
+                    <td>${v.control || 'N/A'}</td>
+                    <td>${v.tipo}</td>
+                    <td>$${v.total.toFixed(2)}</td>
+                    <td>$${(v.exento || 0).toFixed(2)}</td>
+                    <td>$${(v.baseImponible || 0).toFixed(2)}</td>
+                    <td>$${(v.iva || 0).toFixed(2)}</td>
+                    <td><button class="btn-delete" onclick="mostrarComprobanteVentaHistorica(${v.id})">Ver</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function mostrarComprobanteVentaHistorica(id) {
+            let v = ventas.find(item => item.id === id);
+            if(v) {
+                mostrarComprobante(v);
             }
         }
 
-        function calcularInicialCashea() {
-            let totalText = document.getElementById('finalTotal').innerText.replace('$', '');
-            let total = parseFloat(totalText) || 0;
-            let porcentaje = parseFloat(document.getElementById('casheaLevel').value) || 0.40;
-            let inicialUSD = total * porcentaje;
-            let inicialBs = inicialUSD * tasaCambio;
-            document.getElementById('casheaInicialMonto').innerText = `$${inicialUSD.toFixed(2)} (Bs ${inicialBs.toFixed(2)})`;
-        }
-
-        function procesarVenta() {
-            if(carrito.length === 0) {
-                alert("El carrito está vacío.");
-                return;
-            }
-            alert("¡Venta procesada con éxito!");
-            carrito = [];
-            renderCarrito();
-        }
-
-        async function actualizarTasaBCV(silencioso = false) {
-            try {
-                if(!silencioso) alert("Consultando la tasa oficial del día en línea...");
-                
-                // Usando API abierta de Dólar Venezuela / BCV
-                let response = await fetch('https://pydolarve.org/api/v1/dollar?monitor=bcv');
-                let data = await response.json();
-                
-                let nuevaTasa = data.price;
-
-                if (nuevaTasa && nuevaTasa > 0) {
-                    tasaCambio = parseFloat(nuevaTasa);
-                    document.getElementById('storeTasa').value = tasaCambio;
-                    document.getElementById('lblTasa').innerText = tasaCambio;
-                    localStorage.setItem('yaya_tasa', tasaCambio);
-                    calcularTotales();
-                    if(!silencioso) alert("¡Tasa BCV actualizada exitosamente a: " + tasaCambio + " Bs!");
-                } else {
-                    throw new Error("Respuesta inválida");
-                }
-            } catch (error) {
-                console.error("Error al consultar API, usando valor manual o previo:", error);
-                // Si falla el internet o la API, permite leer lo que el usuario ponga en el input de forma manual como respaldo
-                let inputVal = parseFloat(document.getElementById('storeTasa').value);
-                if(!isNaN(inputVal) && inputVal > 0) {
-                    tasaCambio = inputVal;
-                    localStorage.setItem('yaya_tasa', tasaCambio);
-                    document.getElementById('lblTasa').innerText = tasaCambio;
-                    calcularTotales();
-                    if(!silencioso) alert("No se pudo conectar a la API en línea. Se guardó la tasa ingresada manualmente: " + tasaCambio);
-                } else if(!silencioso) {
-                    alert("Error al actualizar la tasa automáticamente. Verifica tu conexión a internet.");
-                }
-            }
-        }
-
-        function guardarConfig() {
-            actualizarTasaBCV(true);
-            alert("Configuración general guardada exitosamente.");
-        }
-
-        function cerrarModal() {
-            document.getElementById('invoiceModal').style.display = 'none';
+        // Inicializar al cargar
+        window.onload = function() {
+            // Si ya hay login previo o quieres entrar directo:
+            // initApp();
         }
     </script>
 </body>
