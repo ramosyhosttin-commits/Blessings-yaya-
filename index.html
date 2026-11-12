@@ -67,7 +67,7 @@
         }
 
         .login-box::before {
-            content: 'Y';
+            content: 'B';
             position: absolute;
             top: 50%;
             left: 50%;
@@ -377,7 +377,7 @@
             border: 1px solid var(--border-dark);
             padding: 25px;
             border-radius: 12px;
-            max-width: 950px;
+            max-width: 980px;
             margin-bottom: 20px;
         }
 
@@ -421,7 +421,7 @@
         }
 
         th, td {
-            padding: 10px;
+            padding: 8px;
             text-align: left;
             border-bottom: 1px solid var(--border-dark);
             color: var(--text-main);
@@ -447,11 +447,25 @@
             border-color: var(--primary-pink);
         }
 
+        .btn-save-row {
+            background: #10b981;
+            color: #fff;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+            margin-right: 4px;
+        }
+
+        .btn-save-row:hover { background: #059669; }
+
         .btn-delete {
             background: #ff2a75;
             color: #fff;
             border: none;
-            padding: 6px 12px;
+            padding: 6px 10px;
             border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
@@ -543,8 +557,8 @@
     <div id="loginOverlay">
         <div class="login-box">
             <h2>🛍️ Yaya Confecciones Login</h2>
-            <input type="text" id="loginUser" placeholder="Usuario" style="margin-bottom: 10px;">
-            <input type="password" id="loginPass" placeholder="Contraseña" style="margin-bottom: 15px;">
+            <input type="text" id="loginUser" placeholder="Usuario" style="margin-bottom: 10px;" onkeyup="if(event.key==='Enter') verificarLogin()">
+            <input type="password" id="loginPass" placeholder="Contraseña" style="margin-bottom: 15px;" onkeyup="if(event.key==='Enter') verificarLogin()">
             <button class="btn-action" onclick="verificarLogin()">Entrar al Sistema</button>
             <p id="loginError" style="color: #ff2a75; font-size: 0.8rem; margin-top: 10px; display: none;">Usuario o contraseña incorrectos</p>
         </div>
@@ -593,7 +607,7 @@
                 <div>
                     <div class="payment-methods">
                         <label>Tipo de Documento:</label>
-                        <select id="tipoDocumentoSelect" style="margin-bottom: 8px;">
+                        <select id="tipoDocumentoSelect" style="margin-bottom: 8px;" onchange="calcularTotales()">
                             <option value="NOTA_ENTREGA">Nota de Entrega (No Fiscal)</option>
                             <option value="FACTURA">Factura Fiscal (SENIAT)</option>
                         </select>
@@ -653,7 +667,7 @@
 
         <!-- 2. VISTA INVENTARIO -->
         <div class="section-view" id="viewInventario">
-            <div style="width: 100%; max-width: 950px;">
+            <div style="width: 100%; max-width: 980px;">
                 <div class="panel-box" style="max-width: 100%;">
                     <h3>➕ Agregar Nuevo Producto (Detal y Mayor)</h3>
                     <div style="display: grid; grid-template-columns: 1.2fr 2fr 1fr 1fr 1fr 1fr; gap: 8px;">
@@ -671,17 +685,20 @@
                 </div>
 
                 <div class="panel-box" style="max-width: 100%;">
-                    <h3>📦 Stock y Precios Actuales</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 style="margin-bottom: 0;">📦 Stock y Precios Actuales</h3>
+                        <span id="estadoGuardadoInv" style="color: #10b981; font-size: 0.85rem; font-weight: 600;">✓ Inventario sincronizado</span>
+                    </div>
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 15%;">Código</th>
-                                <th style="width: 30%;">Nombre</th>
-                                <th style="width: 12%;">Detal ($)</th>
-                                <th style="width: 12%;">Mayor ($)</th>
-                                <th style="width: 10%;">Stock</th>
-                                <th style="width: 11%;">Impuesto</th>
-                                <th style="width: 10%;">Acción</th>
+                                <th style="width: 13%;">Código</th>
+                                <th style="width: 26%;">Nombre</th>
+                                <th style="width: 11%;">Detal ($)</th>
+                                <th style="width: 11%;">Mayor ($)</th>
+                                <th style="width: 9%;">Stock</th>
+                                <th style="width: 12%;">Impuesto</th>
+                                <th style="width: 18%;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="inventoryTableBody"></tbody>
@@ -859,16 +876,45 @@
     </div>
 
     <script>
-        // Variables Globales
-        let productos = JSON.parse(localStorage.getItem('yaya_productos')) || [
-            { id: '1', codigo: 'PROD-001', nombre: 'Jersey Motocross Fox Pro', precio: 35.00, mayorPrice: 28.00, stock: 15, iva: 1 },
-            { id: '2', codigo: 'PROD-002', nombre: 'Pantalón Deportivo Lycra', precio: 25.00, mayorPrice: 20.00, stock: 20, iva: 1 },
-            { id: '3', codigo: 'PROD-003', nombre: 'Gorra Trucker Bordada', precio: 12.00, mayorPrice: 9.00, stock: 30, iva: 1 },
-            { id: '4', codigo: 'PROD-004', nombre: 'Mono Casual Algodón', precio: 30.00, mayorPrice: 24.00, stock: 10, iva: 1 }
-        ];
+        // Función de recuperación segura: nunca borra ni sobrescribe inventario existente
+        function cargarProductosSeguros() {
+            const clavesPosibles = ['yaya_productos', 'productos', 'inventario', 'pos_productos', 'productos_yaya'];
+            for (let clave of clavesPosibles) {
+                let raw = localStorage.getItem(clave);
+                if (raw) {
+                    try {
+                        let parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            // Normalizar estructura sin perder datos existentes
+                            let normalizados = parsed.map((p, idx) => ({
+                                id: String(p.id || Date.now() + idx),
+                                codigo: p.codigo || p.code || `PROD-${idx + 1}`,
+                                nombre: p.nombre || p.name || 'Producto',
+                                precio: parseFloat(p.precio ?? p.price ?? 0),
+                                mayorPrice: parseFloat(p.mayorPrice ?? p.precioMayor ?? p.precio ?? p.price ?? 0),
+                                stock: parseInt(p.stock ?? p.cantidad ?? 0),
+                                iva: p.iva !== undefined ? parseInt(p.iva) : 1
+                            }));
+                            localStorage.setItem('yaya_productos', JSON.stringify(normalizados));
+                            return normalizados;
+                        }
+                    } catch (e) {}
+                }
+            }
+            // Solo si no existe absolutamente ningún inventario guardado en el navegador
+            const iniciales = [
+                { id: '1', codigo: 'PROD-001', nombre: 'Jersey Motocross Fox Pro', precio: 35.00, mayorPrice: 28.00, stock: 15, iva: 1 },
+                { id: '2', codigo: 'PROD-002', nombre: 'Pantalón Deportivo Lycra', precio: 25.00, mayorPrice: 20.00, stock: 20, iva: 1 },
+                { id: '3', codigo: 'PROD-003', nombre: 'Gorra Trucker Bordada', precio: 12.00, mayorPrice: 9.00, stock: 30, iva: 1 },
+                { id: '4', codigo: 'PROD-004', nombre: 'Mono Casual Algodón', precio: 30.00, mayorPrice: 24.00, stock: 10, iva: 1 }
+            ];
+            localStorage.setItem('yaya_productos', JSON.stringify(iniciales));
+            return iniciales;
+        }
 
+        let productos = cargarProductosSeguros();
         let carrito = [];
-        let ventas = JSON.parse(localStorage.getItem('yaya_ventas')) || [];
+        let ventas = JSON.parse(localStorage.getItem('yaya_ventas')) || JSON.parse(localStorage.getItem('ventas')) || [];
         let historialCierres = JSON.parse(localStorage.getItem('yaya_cierres')) || [];
         let turnoActual = JSON.parse(localStorage.getItem('yaya_turno')) || { numero: 1, inicio: new Date().toLocaleString() };
         
@@ -880,11 +926,20 @@
             theme: 'dark'
         };
 
+        function guardarProductosEnStorage() {
+            localStorage.setItem('yaya_productos', JSON.stringify(productos));
+            const indicador = document.getElementById('estadoGuardadoInv');
+            if (indicador) {
+                indicador.innerText = '✓ Cambios guardados (' + new Date().toLocaleTimeString() + ')';
+            }
+        }
+
         function verificarLogin() {
-            const u = document.getElementById('loginUser').value.trim();
+            const u = document.getElementById('loginUser').value.trim().toLowerCase();
             const p = document.getElementById('loginPass').value.trim();
-            if((u === 'admin' && p === 'admin123') || (u === 'cajero' && p === '1234') || (u === 'yaya' && p === '2026')) {
+            if (u === 'yaya' && p === 'blessing') {
                 document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('loginError').style.display = 'none';
                 initApp();
             } else {
                 document.getElementById('loginError').style.display = 'block';
@@ -892,6 +947,7 @@
         }
 
         function initApp() {
+            productos = cargarProductosSeguros();
             aplicarConfig();
             renderCatalogo();
             renderInventoryTable();
@@ -908,7 +964,7 @@
             document.getElementById('storeThemeSelect').value = config.theme;
             document.getElementById('lblTasa').innerText = config.tasa;
 
-            if(config.theme === 'light') {
+            if (config.theme === 'light') {
                 document.body.classList.add('light-theme');
             } else {
                 document.body.classList.remove('light-theme');
@@ -932,7 +988,7 @@
             try {
                 let res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar/enparalelo');
                 let data = await res.json();
-                if(data && data.price) {
+                if (data && data.price) {
                     document.getElementById('storeTasa').value = data.price;
                     guardarConfig();
                 }
@@ -945,34 +1001,35 @@
             try {
                 let res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar/enparalelo');
                 let data = await res.json();
-                if(data && data.price && !localStorage.getItem('yaya_config')) {
+                if (data && data.price && !localStorage.getItem('yaya_config')) {
                     config.tasa = data.price;
                     document.getElementById('storeTasa').value = config.tasa;
                     document.getElementById('lblTasa').innerText = config.tasa;
                 }
-            } catch(e) {}
+            } catch (e) {}
         }
 
         function cambiarVista(vista) {
             document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active-view'));
             document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
 
-            if(vista === 'pos') {
+            if (vista === 'pos') {
                 document.getElementById('viewPos').classList.add('active-view');
                 document.getElementById('mPos').classList.add('active');
-            } else if(vista === 'inventario') {
+                renderCatalogo(document.getElementById('searchProduct').value);
+            } else if (vista === 'inventario') {
                 document.getElementById('viewInventario').classList.add('active-view');
                 document.getElementById('mInv').classList.add('active');
                 renderInventoryTable();
-            } else if(vista === 'caja') {
+            } else if (vista === 'caja') {
                 document.getElementById('viewCaja').classList.add('active-view');
                 document.getElementById('mCaja').classList.add('active');
                 renderCajaData();
-            } else if(vista === 'libro') {
+            } else if (vista === 'libro') {
                 document.getElementById('viewLibro').classList.add('active-view');
                 document.getElementById('mLibro').classList.add('active');
                 renderLibroVentas();
-            } else if(vista === 'config') {
+            } else if (vista === 'config') {
                 document.getElementById('viewConfig').classList.add('active-view');
                 document.getElementById('mConfig').classList.add('active');
             }
@@ -984,15 +1041,18 @@
             grid.innerHTML = '';
 
             const modo = document.getElementById('tipoVentaSelect').value;
-            let filtrados = productos.filter(p => p.nombre.toLowerCase().includes(filtro.toLowerCase()) || p.codigo.toLowerCase().includes(filtro.toLowerCase()));
+            let filtrados = productos.filter(p => 
+                String(p.nombre).toLowerCase().includes(filtro.toLowerCase()) || 
+                String(p.codigo).toLowerCase().includes(filtro.toLowerCase())
+            );
 
-            if(filtrados.length === 0) {
+            if (filtrados.length === 0) {
                 grid.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No se encontraron productos.</p>';
                 return;
             }
 
             filtrados.forEach(p => {
-                const precioMostrar = modo === 'mayor' ? (p.mayorPrice || p.precio) : p.precio;
+                const precioMostrar = modo === 'mayor' ? (parseFloat(p.mayorPrice) || parseFloat(p.precio)) : parseFloat(p.precio);
                 const card = document.createElement('div');
                 card.className = 'product-card';
                 card.onclick = () => agregarAlCarrito(p.id);
@@ -1014,11 +1074,10 @@
             const modo = document.getElementById('tipoVentaSelect').value;
             document.getElementById('lblModoCart').innerText = modo === 'mayor' ? 'Al Mayor' : 'Detal';
             
-            // Recalcular precios en el carrito actual según el modo
             carrito.forEach(item => {
-                let pObj = productos.find(p => p.id === item.id);
-                if(pObj) {
-                    item.precio = modo === 'mayor' ? (pObj.mayorPrice || pObj.precio) : pObj.precio;
+                let pObj = productos.find(p => String(p.id) === String(item.id));
+                if (pObj) {
+                    item.precio = modo === 'mayor' ? (parseFloat(pObj.mayorPrice) || parseFloat(pObj.precio)) : parseFloat(pObj.precio);
                 }
             });
             renderCarrito();
@@ -1027,25 +1086,25 @@
 
         // Carrito
         function agregarAlCarrito(id) {
-            let prod = productos.find(p => p.id === id);
-            if(!prod || prod.stock <= 0) {
+            let prod = productos.find(p => String(p.id) === String(id));
+            if (!prod || prod.stock <= 0) {
                 alert('Producto sin stock disponible.');
                 return;
             }
 
             const modo = document.getElementById('tipoVentaSelect').value;
-            const precioUsar = modo === 'mayor' ? (prod.mayorPrice || prod.precio) : prod.precio;
+            const precioUsar = modo === 'mayor' ? (parseFloat(prod.mayorPrice) || parseFloat(prod.precio)) : parseFloat(prod.precio);
 
-            let itemEnCarrito = carrito.find(i => i.id === id);
-            if(itemEnCarrito) {
-                if(itemEnCarrito.cantidad < prod.stock) {
+            let itemEnCarrito = carrito.find(i => String(i.id) === String(id));
+            if (itemEnCarrito) {
+                if (itemEnCarrito.cantidad < prod.stock) {
                     itemEnCarrito.cantidad++;
                 } else {
                     alert('Stock máximo alcanzado.');
                 }
             } else {
                 carrito.push({
-                    id: prod.id,
+                    id: String(prod.id),
                     codigo: prod.codigo,
                     nombre: prod.nombre,
                     precio: precioUsar,
@@ -1057,14 +1116,14 @@
         }
 
         function cambiarCantidad(id, delta) {
-            let item = carrito.find(i => i.id === id);
-            let prod = productos.find(p => p.id === id);
-            if(item) {
+            let item = carrito.find(i => String(i.id) === String(id));
+            let prod = productos.find(p => String(p.id) === String(id));
+            if (item) {
                 let nuevaCant = item.cantidad + delta;
-                if(nuevaCant > 0 && nuevaCant <= prod.stock) {
+                if (nuevaCant > 0 && nuevaCant <= prod.stock) {
                     item.cantidad = nuevaCant;
-                } else if(nuevaCant <= 0) {
-                    carrito = carrito.filter(i => i.id !== id);
+                } else if (nuevaCant <= 0) {
+                    carrito = carrito.filter(i => String(i.id) !== String(id));
                 } else {
                     alert('Stock insuficiente.');
                 }
@@ -1073,13 +1132,13 @@
         }
 
         function cambiarCantidadManual(id, val) {
-            let item = carrito.find(i => i.id === id);
-            let prod = productos.find(p => p.id === id);
+            let item = carrito.find(i => String(i.id) === String(id));
+            let prod = productos.find(p => String(p.id) === String(id));
             let cant = parseInt(val) || 1;
-            if(item && prod) {
-                if(cant > 0 && cant <= prod.stock) {
+            if (item && prod) {
+                if (cant > 0 && cant <= prod.stock) {
                     item.cantidad = cant;
-                } else if(cant > prod.stock) {
+                } else if (cant > prod.stock) {
                     item.cantidad = prod.stock;
                     alert('Cantidad ajustada al stock máximo.');
                 }
@@ -1088,13 +1147,13 @@
         }
 
         function eliminarItemCarrito(id) {
-            carrito = carrito.filter(i => i.id !== id);
+            carrito = carrito.filter(i => String(i.id) !== String(id));
             renderCarrito();
         }
 
         function renderCarrito() {
             const container = document.getElementById('cartItems');
-            if(carrito.length === 0) {
+            if (carrito.length === 0) {
                 container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Selecciona o busca productos...</p>';
                 calcularTotales();
                 return;
@@ -1126,9 +1185,8 @@
             let tipoDoc = document.getElementById('tipoDocumentoSelect').value;
             
             let montoIva = 0;
-            if(tipoDoc === 'FACTURA') {
+            if (tipoDoc === 'FACTURA') {
                 document.getElementById('rowIva').style.display = 'flex';
-                // Calcular IVA 16% sobre los productos gravados
                 let baseImponibleIVA = carrito.filter(i => i.iva === 1).reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
                 montoIva = baseImponibleIVA * 0.16;
             } else {
@@ -1143,7 +1201,7 @@
             document.getElementById('totalBs').innerText = `Bs ${totalBs.toFixed(2)}`;
             document.getElementById('finalTotal').innerText = `$${totalUSD.toFixed(2)}`;
 
-            if(document.getElementById('paymentMethod').value === 'Cashea') {
+            if (document.getElementById('paymentMethod').value === 'Cashea') {
                 calcularInicialCashea();
             }
         }
@@ -1151,13 +1209,13 @@
         function toggleCasheaField() {
             const metodo = document.getElementById('paymentMethod').value;
             document.getElementById('casheaContainer').style.display = metodo === 'Cashea' ? 'block' : 'none';
-            if(metodo === 'Cashea') calcularInicialCashea();
+            if (metodo === 'Cashea') calcularInicialCashea();
         }
 
         function calcularInicialCashea() {
             let totalUSD = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
             let tipoDoc = document.getElementById('tipoDocumentoSelect').value;
-            if(tipoDoc === 'FACTURA') {
+            if (tipoDoc === 'FACTURA') {
                 let baseImponibleIVA = carrito.filter(i => i.iva === 1).reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
                 totalUSD += baseImponibleIVA * 0.16;
             }
@@ -1170,7 +1228,7 @@
 
         // Procesar Venta y Facturar
         function procesarVenta() {
-            if(carrito.length === 0) {
+            if (carrito.length === 0) {
                 alert('El carrito está vacío.');
                 return;
             }
@@ -1183,30 +1241,28 @@
 
             carrito.forEach(item => {
                 let itemTotal = item.precio * item.cantidad;
-                if(item.iva === 1) {
+                if (item.iva === 1) {
                     baseImponible += itemTotal;
                 } else {
                     exento += itemTotal;
                 }
             });
 
-            if(tipoDoc === 'FACTURA') {
+            if (tipoDoc === 'FACTURA') {
                 montoIva = baseImponible * 0.16;
             }
 
             let totalUSD = subtotal + montoIva;
             let metodo = document.getElementById('paymentMethod').value;
 
-            // Descontar stock
             carrito.forEach(item => {
-                let prod = productos.find(p => p.id === item.id);
-                if(prod) {
+                let prod = productos.find(p => String(p.id) === String(item.id));
+                if (prod) {
                     prod.stock -= item.cantidad;
                 }
             });
-            localStorage.setItem('yaya_productos', JSON.stringify(productos));
+            guardarProductosEnStorage();
 
-            // Registrar Venta
             let numDoc = 'DOC-' + Math.floor(100000 + Math.random() * 900000);
             let numControl = tipoDoc === 'FACTURA' ? '00-' + Math.floor(10000000 + Math.random() * 90000000) : '';
             
@@ -1229,10 +1285,8 @@
             ventas.push(nuevaVenta);
             localStorage.setItem('yaya_ventas', JSON.stringify(ventas));
 
-            // Mostrar Modal Comprobante
             mostrarComprobante(nuevaVenta);
 
-            // Limpiar carrito
             carrito = [];
             renderCarrito();
             renderCatalogo();
@@ -1249,7 +1303,7 @@
             document.getElementById('invNum').innerText = `Nro: ${v.documento}`;
             
             const ctrlEl = document.getElementById('invControlNum');
-            if(v.tipo === 'FACTURA') {
+            if (v.tipo === 'FACTURA') {
                 ctrlEl.style.display = 'block';
                 ctrlEl.innerText = `Control: ${v.control}`;
                 document.getElementById('invFiscalFooter').style.display = 'block';
@@ -1265,7 +1319,7 @@
             });
             bodyHtml += `</table><p>----------------------------------------</p>`;
             bodyHtml += `<div style="text-align: right;">`;
-            if(v.tipo === 'FACTURA') {
+            if (v.tipo === 'FACTURA') {
                 bodyHtml += `<p>Subtotal: $${v.subtotal.toFixed(2)}</p>`;
                 bodyHtml += `<p>Base Imp (16%): $${v.baseImponible.toFixed(2)}</p>`;
                 bodyHtml += `<p>IVA 16%: $${v.iva.toFixed(2)}</p>`;
@@ -1283,7 +1337,7 @@
             document.getElementById('invoiceModal').style.display = 'none';
         }
 
-        // Gestión de Inventario con Edición Segura (Persistente)
+        // Gestión de Inventario con Guardado en Tiempo Real
         function agregarProducto() {
             let codigo = document.getElementById('newProdCode').value.trim();
             let nombre = document.getElementById('newProdName').value.trim();
@@ -1292,7 +1346,7 @@
             let stock = parseInt(document.getElementById('newProdStock').value);
             let iva = parseInt(document.getElementById('newProdIva').value);
 
-            if(!codigo || !nombre || isNaN(precio) || isNaN(stock)) {
+            if (!codigo || !nombre || isNaN(precio) || isNaN(stock)) {
                 alert('Por favor completa todos los campos obligatorios.');
                 return;
             }
@@ -1302,12 +1356,12 @@
                 codigo,
                 nombre,
                 precio,
-                mayorPrice: isNaN(mayorPrice) ? precio * 0.8 : mayorPrice,
+                mayorPrice: isNaN(mayorPrice) ? precio : mayorPrice,
                 stock,
                 iva
             });
 
-            localStorage.setItem('yaya_productos', JSON.stringify(productos));
+            guardarProductosEnStorage();
             document.getElementById('newProdCode').value = '';
             document.getElementById('newProdName').value = '';
             document.getElementById('newProdPrice').value = '';
@@ -1326,41 +1380,57 @@
             productos.forEach(p => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><input type="text" class="table-input" value="${p.codigo}" onchange="actualizarDatoProducto('${p.id}', 'codigo', this.value)"></td>
-                    <td><input type="text" class="table-input" value="${p.nombre}" onchange="actualizarDatoProducto('${p.id}', 'nombre', this.value)"></td>
-                    <td><input type="number" class="table-input" value="${p.precio}" step="0.01" onchange="actualizarDatoProducto('${p.id}', 'precio', this.value)"></td>
-                    <td><input type="number" class="table-input" value="${p.mayorPrice || p.precio}" step="0.01" onchange="actualizarDatoProducto('${p.id}', 'mayorPrice', this.value)"></td>
-                    <td><input type="number" class="table-input" value="${p.stock}" onchange="actualizarDatoProducto('${p.id}', 'stock', this.value)"></td>
+                    <td><input type="text" class="table-input" id="code_${p.id}" value="${p.codigo}" oninput="guardarFilaEnVivo('${p.id}')"></td>
+                    <td><input type="text" class="table-input" id="name_${p.id}" value="${p.nombre}" oninput="guardarFilaEnVivo('${p.id}')"></td>
+                    <td><input type="number" class="table-input" id="price_${p.id}" value="${p.precio}" step="0.01" oninput="guardarFilaEnVivo('${p.id}')"></td>
+                    <td><input type="number" class="table-input" id="mayor_${p.id}" value="${p.mayorPrice || p.precio}" step="0.01" oninput="guardarFilaEnVivo('${p.id}')"></td>
+                    <td><input type="number" class="table-input" id="stock_${p.id}" value="${p.stock}" oninput="guardarFilaEnVivo('${p.id}')"></td>
                     <td>
-                        <select class="table-input" onchange="actualizarDatoProducto('${p.id}', 'iva', this.value)">
+                        <select class="table-input" id="iva_${p.id}" onchange="guardarFilaEnVivo('${p.id}')">
                             <option value="1" ${p.iva === 1 ? 'selected' : ''}>IVA 16%</option>
                             <option value="0" ${p.iva === 0 ? 'selected' : ''}>Exento</option>
                         </select>
                     </td>
-                    <td><button class="btn-delete" onclick="eliminarProducto('${p.id}')">Eliminar</button></td>
+                    <td style="white-space: nowrap;">
+                        <button class="btn-save-row" onclick="confirmarGuardadoFila('${p.id}')">Guardar</button>
+                        <button class="btn-delete" onclick="eliminarProducto('${p.id}')">X</button>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function actualizarDatoProducto(id, campo, valor) {
-            let prod = productos.find(p => p.id === id);
-            if(prod) {
-                if(campo === 'precio' || campo === 'mayorPrice' || campo === 'stock' || campo === 'iva') {
-                    prod[campo] = parseFloat(valor) || 0;
-                } else {
-                    prod[campo] = valor;
-                }
-                // Guardado inmediato y seguro en localStorage
-                localStorage.setItem('yaya_productos', JSON.stringify(productos));
-                renderCatalogo();
-            }
+        function guardarFilaEnVivo(id) {
+            let prod = productos.find(p => String(p.id) === String(id));
+            if (!prod) return;
+
+            const codeEl = document.getElementById(`code_${id}`);
+            const nameEl = document.getElementById(`name_${id}`);
+            const priceEl = document.getElementById(`price_${id}`);
+            const mayorEl = document.getElementById(`mayor_${id}`);
+            const stockEl = document.getElementById(`stock_${id}`);
+            const ivaEl = document.getElementById(`iva_${id}`);
+
+            if (codeEl) prod.codigo = codeEl.value;
+            if (nameEl) prod.nombre = nameEl.value;
+            if (priceEl && priceEl.value !== '') prod.precio = parseFloat(priceEl.value) || 0;
+            if (mayorEl && mayorEl.value !== '') prod.mayorPrice = parseFloat(mayorEl.value) || 0;
+            if (stockEl && stockEl.value !== '') prod.stock = parseInt(stockEl.value) || 0;
+            if (ivaEl) prod.iva = parseInt(ivaEl.value) || 0;
+
+            guardarProductosEnStorage();
+            renderCatalogo(document.getElementById('searchProduct').value);
+        }
+
+        function confirmarGuardadoFila(id) {
+            guardarFilaEnVivo(id);
+            alert('¡Precio y datos del producto guardados correctamente!');
         }
 
         function eliminarProducto(id) {
-            if(confirm('¿Estás seguro de eliminar este producto del inventario?')) {
-                productos = productos.filter(p => p.id !== id);
-                localStorage.setItem('yaya_productos', JSON.stringify(productos));
+            if (confirm('¿Estás seguro de eliminar este producto del inventario?')) {
+                productos = productos.filter(p => String(p.id) !== String(id));
+                guardarProductosEnStorage();
                 renderInventoryTable();
                 renderCatalogo();
             }
@@ -1378,7 +1448,7 @@
             let montoTotalGlobal = 0;
 
             ventasTurno.forEach(v => {
-                if(totals[v.metodo] !== undefined) {
+                if (totals[v.metodo] !== undefined) {
                     totals[v.metodo] += v.total;
                 }
                 montoTotalGlobal += v.total;
@@ -1407,7 +1477,6 @@
                 tbody.appendChild(tr);
             });
 
-            // Renderizar Historial Cierres Z
             const histBody = document.getElementById('historialCierresBody');
             histBody.innerHTML = '';
             historialCierres.forEach(c => {
@@ -1482,15 +1551,9 @@
 
         function mostrarComprobanteVentaHistorica(id) {
             let v = ventas.find(item => item.id === id);
-            if(v) {
+            if (v) {
                 mostrarComprobante(v);
             }
-        }
-
-        // Inicializar al cargar
-        window.onload = function() {
-            // Si ya hay login previo o quieres entrar directo:
-            // initApp();
         }
     </script>
 </body>
